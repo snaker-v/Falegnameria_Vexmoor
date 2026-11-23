@@ -276,17 +276,46 @@ route('POST','/api/suppliers','suppliers.write',({user,input})=>transaction(db,(
 }));
 route('GET','/api/purchases','suppliers.read',()=>db.prepare(`SELECT p.*,s.name AS supplier_name,i.name AS item_name
   FROM purchases p JOIN suppliers s ON s.id=p.supplier JOIN items i ON i.id=p.item_id ORDER BY p.id DESC`).all());
-route('POST','/api/purchases','suppliers.write',({user,input})=>transaction(db,()=>{
+function supplyFields(input){
   const supplier=integer(input.supplier,1,Number.MAX_SAFE_INTEGER);
   const item=string(input.item,100), quantity=integer(input.quantity,1,100000);
-  const cents=integer(input.cents,0,100000000), note=string(input.note,250);
+  const cents=integer(input.cents,0,100000000), note=input.note===''?'':string(input.note,250);
   requireAccess(db.prepare('SELECT 1 FROM suppliers WHERE id=?').get(supplier),'Fornitore non trovato',404);
   requireAccess(db.prepare('SELECT 1 FROM items WHERE id=?').get(item),'Articolo non trovato',404);
+  return {supplier,item,quantity,cents,note};
+}
+route('POST','/api/purchases','suppliers.write',({user,input})=>transaction(db,()=>{
+  const {supplier,item,quantity,cents,note}=supplyFields(input);
   const {id}=db.prepare('INSERT INTO purchases(supplier,item_id,quantity,cents,note,actor) VALUES(?,?,?,?,?,?) RETURNING id')
     .get(supplier,item,quantity,cents,note,user.id);
   move(db,user.id,item,quantity,'Fornitura #'+id);
   audit(db,user.id,'purchase.created',{id});
   return {id};
+}));
+route('POST','/api/purchases/correct','suppliers.write',({user,input})=>transaction(db,()=>{
+  const id=integer(input.id,1,Number.MAX_SAFE_INTEGER);
+  const previous=db.prepare('SELECT id,supplier,item_id,quantity,cents,note FROM purchases WHERE id=?').get(id);
+  requireAccess(previous,'Fornitura non trovata',404);
+  const {supplier,item,quantity,cents,note}=supplyFields(input);
+  const next={id,supplier,item_id:item,quantity,cents,note};
+  const fields=['supplier','item_id','quantity','cents','note'];
+  requireAccess(fields.every(key=>previous[key]===input.previous?.[key]),
+    'La fornitura è già stata modificata. Aggiorna la pagina e riprova.',409);
+  const reason=string(input.reason,200);
+  if(fields.every(key=>previous[key]===next[key]))return {id,changed:false};
+  const movement='Rettifica fornitura #'+id+' · '+reason;
+  const changes=previous.item_id===item
+    ?[[item,quantity-previous.quantity]]
+    :[[previous.item_id,-previous.quantity],[item,quantity]];
+  for(const [article,delta] of changes)if(delta<0){
+    const {stock}=db.prepare('SELECT stock FROM items WHERE id=?').get(article);
+    requireAccess(stock+delta>=0,'Scorte insufficienti per rettificare la fornitura: parte del materiale potrebbe essere già stata usata.',409);
+  }
+  for(const [article,delta] of changes)if(delta)move(db,user.id,article,delta,movement);
+  db.prepare('UPDATE purchases SET supplier=?,item_id=?,quantity=?,cents=?,note=? WHERE id=?')
+    .run(supplier,item,quantity,cents,note,id);
+  audit(db,user.id,'purchase.corrected',{id,previous,next,reason});
+  return {id,changed:true};
 }));
 route('GET','/api/tickets',null,({user,permissions})=>{
   const manage=permissions.includes('tickets.manage');

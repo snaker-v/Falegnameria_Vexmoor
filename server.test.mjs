@@ -270,6 +270,26 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal(stock('ascia'),displayStock-2);
     assert.equal((await get('sales')).filter(r=>r.sale_channel==='display').length,1);
     assert.match((await post('item-moves',{item:'ascia'}))[0].reason,/Messa in vetrina/);
+    const receiptToCorrect=await post('purchases',{supplier:1,item:'acciaio',quantity:10,cents:450,note:'Ricevuta'});
+    const original=(await get('purchases')).find(r=>r.id===receiptToCorrect.id);
+    const steelBefore=stock('acciaio');
+    const corrected={id:receiptToCorrect.id,previous:original,supplier:2,item:'acciaio',quantity:8,cents:45,note:'',reason:'Conteggio e costo corretti'};
+    await post('purchases/correct',corrected,403,customer);
+    await post('purchases/correct',corrected);
+    await post('purchases/correct',corrected,409);
+    assert.equal(stock('acciaio'),steelBefore-2);
+    const saved=(await get('purchases')).find(r=>r.id===receiptToCorrect.id);
+    assert.equal(saved.cents,45);
+    assert.equal(saved.supplier,2);
+    const ironBefore=stock('ferro');
+    await post('purchases/correct',{...corrected,previous:saved,item:'ferro',quantity:3});
+    assert.equal(stock('acciaio'),steelBefore-10);
+    assert.equal(stock('ferro'),ironBefore+3);
+    const latest=(await get('purchases')).find(r=>r.id===receiptToCorrect.id);
+    await post('inventory',{id:'ferro',delta:-stock('ferro'),reason:'Materiale usato'});
+    await post('purchases/correct',{...corrected,previous:latest,quantity:1},409);
+    assert.equal((await get('purchases')).find(r=>r.id===receiptToCorrect.id).item_id,'ferro');
+    assert.equal(stock('acciaio'),steelBefore-10);
     const log=await get('audit');
     for(const action of ['account.updated','permissions.matrix','stock.item','stock.batch','purchase.received','purchase.payment','production'])
       assert(log.some(r=>r.action===action),action);

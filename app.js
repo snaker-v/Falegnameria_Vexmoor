@@ -95,9 +95,32 @@ async function suppliers() {
         await show('suppliers');status('Fornitura ricevuta e scorte aggiornate.');
       }));
   }
+  const editable=allowed('suppliers.write')&&items.length>0;
+  function editSupply(record){
+    const supplier=pick('supplier',names(directory));
+    supplier.value=String(record.supplier);
+    const item=pick('item',names(items));
+    item.value=record.item_id;
+    const quantity=Object.assign(input('quantity','number'),{value:record.quantity,min:1,max:100000});
+    const cents=Object.assign(input('cents','number'),{value:record.cents,min:0,max:100000000});
+    const note=Object.assign(input('note','text',false),{value:record.note,maxLength:250});
+    const reason=Object.assign(input('reason'),{maxLength:200});
+    const previous=Object.fromEntries(['supplier','item_id','quantity','cents','note'].map(key=>[key,record[key]]));
+    modal('Modifica fornitura #'+record.id,
+      el('p','Se cambi articolo o quantità, lo scarico e il carico di rettifica vengono registrati in magazzino. Il costo resta il totale della fornitura.'),
+      form([['Fornitore',supplier],['Materiale',item],['Quantità',quantity],['Costo totale pagato in centesimi RP',cents],
+        ['Nota',note],['Motivo della rettifica',reason]],'Salva rettifica',async d=>{
+        const result=await api('purchases/correct',{...d,id:record.id,previous,supplier:Number(d.supplier),
+          quantity:Number(d.quantity),cents:Number(d.cents)});
+        document.getElementById('modal').close();
+        await show('suppliers');
+        status(result.changed?'Fornitura rettificata.':'Nessuna modifica alla fornitura.');
+      }));
+  }
   return [...content,table(['Fornitore','Condizioni'],directory.map(r=>[r.name,r.terms])),
-    el('h3','Forniture ricevute'),table(['Data UTC','Fornitore','Materiale','Quantità','Costo totale','Nota'],
-      history.map(r=>[r.created_at,r.supplier_name,r.item_name,r.quantity,money(r.cents),r.note]))];
+    el('h3','Forniture ricevute'),table(['Data UTC','Fornitore','Materiale','Quantità','Costo totale','Nota',...(editable?['Azioni']:[])],
+      history.map(r=>[r.created_at,r.supplier_name,r.item_name,r.quantity,money(r.cents),r.note,
+        ...(editable?[button('Modifica',()=>editSupply(r))]:[])]))];
 }
 async function tickets() {
   const list=await api('tickets');
