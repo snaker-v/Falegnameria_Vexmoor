@@ -120,7 +120,15 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal((await get('me',stranger)).user.username,'Capobottega');
     assert.equal((await get('me',stranger)).user.discord_username,'client');
     await post('access',{name:'Capobottega RP',note:'Richiesta'},200,stranger);
-    await post('owner-user',{...otherEdit,role:'manager'});
+    assert.equal((await get('me',stranger)).user.username,'Capobottega RP');
+    await post('owner-user',{...otherEdit,role:'manager',rp_name:'Elijah Reed',missiva:'RH-041'});
+    assert.equal((await get('me',stranger)).user.username,'Elijah Reed');
+    assert.equal((await get('me',stranger)).user.discord_username,'client');
+    assert.equal((await get('me',stranger)).user.missiva,undefined);
+    assert.equal((await get('owner-users')).find(u=>u.id===other).missiva,'RH-041');
+    assert.equal((await request('/api/owner-users',stranger)).status,403);
+    assert.equal((await get('staff')).find(u=>u.id===other).username,'Elijah Reed');
+    assert.match(await (await request('/gestionale',admin)).text(),/anteprima=pubblica/);
     assert.equal((await get('me',stranger)).user.role,'manager');
     await post('owner-permissions',{scope:'user',subject:other,rules:{'purchasing.read':false}});
     assert.equal((await request('/api/procurement',stranger)).status,403);
@@ -138,7 +146,10 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal(stock('legno'),40);
     const reopened=open(file);
     assert.equal(reopened.prepare('SELECT description FROM items WHERE id=?').get(added.id).description,'Materiale di prova');
-    assert.equal(reopened.prepare('SELECT state FROM account_controls WHERE user_id=?').get(other).state,'suspended');
+    const profile=reopened.prepare('SELECT * FROM account_controls WHERE user_id=?').get(other);
+    assert.equal(profile.state,'suspended');
+    assert.equal(profile.rp_name,'Elijah Reed');
+    assert.equal(profile.missiva,'RH-041');
     reopened.close();
 
     await post('stock-minimum',{id:'pala',minimum:1});

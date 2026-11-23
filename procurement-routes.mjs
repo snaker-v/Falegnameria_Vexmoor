@@ -38,9 +38,9 @@ export function registerProcurement({route,db,requireAccess:check,string,integer
       row.standard_cents=rate.cents;row.standard_source=rate.source;row.standard_date=rate.observed??db.prepare(
         "SELECT created_at FROM price_history WHERE item_id=? AND kind='material' ORDER BY id DESC LIMIT 1").get(row.id)?.created_at??null;
     }
-    const orders=db.prepare(`SELECT p.*,s.name AS supplier_name,COALESCE(NULLIF(a.display_name,''),u.username) AS assignee_name
+    const orders=db.prepare(`SELECT p.*,s.name AS supplier_name,rp.name AS assignee_name
       FROM purchase_orders p JOIN suppliers s ON s.id=p.supplier_id JOIN users u ON u.id=p.assignee
-      LEFT JOIN account_controls a ON a.user_id=u.id ORDER BY p.id DESC`).all();
+      JOIN rp_profiles rp ON rp.id=u.id ORDER BY p.id DESC`).all();
     const listing=db.prepare('SELECT name,cents FROM competitors').all();
     const benchmark=new Map();
     for(const row of listing){const item=key(row.name.trim());benchmark.set(item,Math.min(benchmark.get(item)??Infinity,row.cents));}
@@ -48,7 +48,7 @@ export function registerProcurement({route,db,requireAccess:check,string,integer
       receipts:db.prepare('SELECT request_id,details,created_at FROM purchase_receipts WHERE order_id=? ORDER BY created_at DESC').all(o.id)})),
       items:db.prepare('SELECT i.id,i.name,i.reference_cents,(r.item_id IS NOT NULL) AS craft FROM items i LEFT JOIN recipes r ON i.id=r.item_id ORDER BY i.name').all(),
       suppliers:db.prepare('SELECT id,name FROM suppliers ORDER BY name').all(),
-      staff:db.prepare(`SELECT u.id,COALESCE(NULLIF(a.display_name,''),u.username) AS name FROM users u LEFT JOIN account_controls a ON a.user_id=u.id
+      staff:db.prepare(`SELECT u.id,rp.name FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id
         WHERE (u.role IN ('worker','manager','director','accountant') AND COALESCE(a.state,'active')='active') OR u.id=? ORDER BY name`).all(ownerId??''),
       legacy:db.prepare('SELECT p.created_at,p.item_id,p.quantity,p.cents,s.name AS supplier_name,i.name FROM purchases p JOIN suppliers s ON s.id=p.supplier JOIN items i ON i.id=p.item_id').all(),
     };
@@ -178,21 +178,24 @@ export function registerProcurement({route,db,requireAccess:check,string,integer
 
 function registerOwner({route,db,check,string,integer,roles,actions,ownerId,rows,amount,itemId,optional,quantity,supplier}) {
   const userRow=db.prepare('SELECT id,username,role FROM users WHERE id=?');
-  route('GET','/api/owner-users','owner',()=>db.prepare(`SELECT u.*,a.display_name,a.notes,COALESCE(a.state,'active') AS state,
-    r.name,r.note FROM users u LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN requests r ON r.user_id=u.id ORDER BY u.username`)
+  route('GET','/api/owner-users','owner',()=>db.prepare(`SELECT u.*,a.display_name,a.notes,a.rp_name,a.missiva,rp.name AS visible_name,COALESCE(a.state,'active') AS state,
+    r.name,r.note FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN requests r ON r.user_id=u.id ORDER BY u.username`)
     .all().map(u=>({...u,role:u.id===ownerId?'owner':u.role})));
   route('POST','/api/owner-user','owner',({user,input})=>transaction(db,()=>{
     const target=string(input.id,20), before=userRow.get(target);
     check(before,'Utente non trovato',404);
     const display=optional(input.display_name,80),notes=optional(input.notes,1500);
+    const previous=db.prepare('SELECT rp_name,missiva FROM account_controls WHERE user_id=?').get(target);
+    const rpName=input.rp_name===undefined?previous?.rp_name??'':optional(input.rp_name,80);
+    const missiva=input.missiva===undefined?previous?.missiva??'':optional(input.missiva,250);
     const state=input.state, role=input.role;
     check(accountStates.includes(state)&&[...roles,'pending','rejected','owner'].includes(role),'Ruolo o stato non valido',400);
     check(target===ownerId?(role==='owner'&&state==='active'):role!=='owner','Owner principale protetto',403);
     if(target!==ownerId)db.prepare('UPDATE users SET role=? WHERE id=?').run(role,target);
-    db.prepare(`INSERT INTO account_controls(user_id,display_name,notes,state) VALUES(?,?,?,?)
-      ON CONFLICT DO UPDATE SET display_name=excluded.display_name,notes=excluded.notes,state=excluded.state`).run(target,display,notes,state);
+    db.prepare(`INSERT INTO account_controls(user_id,display_name,notes,state,rp_name,missiva) VALUES(?,?,?,?,?,?)
+      ON CONFLICT DO UPDATE SET display_name=excluded.display_name,notes=excluded.notes,state=excluded.state,rp_name=excluded.rp_name,missiva=excluded.missiva`).run(target,display,notes,state,rpName,missiva);
     if(state!=='active')db.prepare('DELETE FROM sessions WHERE user_id=?').run(target);
-    audit(db,user.id,'account.updated',{target,role,state,display,hasNotes:!!notes});return {ok:true};
+    audit(db,user.id,'account.updated',{target,role,state,display,rpName,missivaChanged:missiva!==(previous?.missiva??''),hasNotes:!!notes});return {ok:true};
   }));
   route('POST','/api/owner-activity','owner',({input})=>{
     const target=string(input.id,20);

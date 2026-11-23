@@ -100,8 +100,8 @@ export function registerEconomy({route,db,requireAccess:check,string,integer}){
   route('GET','/api/economy-history','owner',()=>db.prepare(`SELECT h.*,i.name FROM price_history h JOIN items i ON i.id=h.item_id ORDER BY h.id DESC`).all());
   route('GET','/api/economy-customers','owner',()=>({
     tiers:db.prepare('SELECT * FROM price_tiers').all(),
-    customers:db.prepare(`SELECT u.id,COALESCE(NULLIF(a.display_name,''),u.username) AS name,c.tier
-      FROM users u LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN customer_tiers c ON c.user_id=u.id
+    customers:db.prepare(`SELECT u.id,rp.name,c.tier
+      FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN customer_tiers c ON c.user_id=u.id
       WHERE u.role='client' ORDER BY name`).all(),
     overrides:db.prepare('SELECT * FROM customer_prices ORDER BY user_id,item_id').all(),
   }));
@@ -144,8 +144,8 @@ export function registerEconomy({route,db,requireAccess:check,string,integer}){
     return allProducts.all().filter(p=>p.sale_cents!==null).map(p=>({id:p.id,name:p.name,sale_cents:p.sale_cents,
       ...customerQuote(db,user.id,p.id,p.sale_cents,model)}));
   });
-  route('GET','/api/sale-customers','sales.write',()=>db.prepare(`SELECT u.id,COALESCE(NULLIF(a.display_name,''),u.username) AS name
-    FROM users u LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.role='client' AND COALESCE(a.state,'active')='active' ORDER BY name`).all());
+  route('GET','/api/sale-customers','sales.write',()=>db.prepare(`SELECT u.id,rp.name
+    FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.role='client' AND COALESCE(a.state,'active')='active' ORDER BY name`).all());
   route('POST','/api/sale-quote','sales.write',({input})=>{
     const id=string(input.item,100),item=product.get(id);
     check(item?.sale_cents!=null,'Prezzo di vendita non definito',409);

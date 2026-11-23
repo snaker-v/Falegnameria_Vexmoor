@@ -158,11 +158,11 @@ const orderTotal = lines => lines.reduce((sum,line)=>sum+line.quantity*line.cent
 route('GET','/api/orders',null,({user,permissions})=>{
   requireAccess(permissions.includes('orders.create') || permissions.includes('orders.manage'));
   const list=permissions.includes('orders.manage')
-    ? db.prepare('SELECT o.*,u.username FROM orders o JOIN users u ON u.id=o.customer ORDER BY o.id DESC').all()
+    ? db.prepare('SELECT o.*,rp.name AS username FROM orders o JOIN rp_profiles rp ON rp.id=o.customer ORDER BY o.id DESC').all()
     : db.prepare('SELECT * FROM orders WHERE customer=? ORDER BY id DESC').all(user.id);
   const timeline=db.prepare('SELECT status,created_at FROM order_events WHERE order_id=? ORDER BY id');
   const runs=db.prepare('SELECT recipe_id,output,created_at FROM production WHERE order_id=? ORDER BY id');
-  const staff=db.prepare('SELECT username FROM users WHERE id=?');
+  const staff=db.prepare('SELECT name AS username FROM rp_profiles WHERE id=?');
   return list.map(order=>({...order,assignee_name:order.assignee?staff.get(order.assignee)?.username:null,
     lines:orderLines.all(order.id),timeline:timeline.all(order.id),production:runs.all(order.id)}));
 });
@@ -213,8 +213,8 @@ route('POST','/api/order-status','orders.manage',({user,input})=>transaction(db,
   audit(db,user.id,'order.status',{id,previous:order.status,next});
   return {ok:true};
 }));
-const listStaff=()=>db.prepare(`SELECT u.id,COALESCE(NULLIF(a.display_name,''),u.username) AS username,u.role
-  FROM users u LEFT JOIN account_controls a ON a.user_id=u.id
+const listStaff=()=>db.prepare(`SELECT u.id,rp.name AS username,u.role
+  FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id
   WHERE (u.role IN ('worker','manager','director','accountant') AND COALESCE(a.state,'active')='active') OR u.id=? ORDER BY username`).all(OWNER_DISCORD_ID??'');
 route('GET','/api/staff','orders.manage',()=>listStaff());
 route('POST','/api/order-assignee','orders.manage',({user,input})=>transaction(db,()=>{
@@ -225,8 +225,8 @@ route('POST','/api/order-assignee','orders.manage',({user,input})=>transaction(d
   audit(db,user.id,'order.assigned',{id,assignee});
   return {ok:true};
 }));
-route('GET','/api/customers','orders.manage',()=>db.prepare(`SELECT u.id,u.username,COUNT(o.id) AS orders,MAX(o.created_at) AS latest
-  FROM users u LEFT JOIN orders o ON o.customer=u.id WHERE u.role='client' OR o.id IS NOT NULL GROUP BY u.id ORDER BY u.username`).all());
+route('GET','/api/customers','orders.manage',()=>db.prepare(`SELECT u.id,rp.name AS username,COUNT(o.id) AS orders,MAX(o.created_at) AS latest
+  FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN orders o ON o.customer=u.id WHERE u.role='client' OR o.id IS NOT NULL GROUP BY u.id ORDER BY u.username`).all());
 route('GET','/api/cash-entries','cash.read',()=>db.prepare('SELECT * FROM cash_entries ORDER BY id DESC').all());
 route('GET','/api/sales','sales.write',()=>db.prepare("SELECT * FROM cash_entries WHERE kind='sale' ORDER BY id DESC").all());
 route('POST','/api/sales','sales.write',({user,input})=>transaction(db,()=>{
@@ -234,7 +234,7 @@ route('POST','/api/sales','sales.write',({user,input})=>transaction(db,()=>{
   const product=db.prepare('SELECT name,sale_cents FROM items WHERE id=?').get(item);
   requireAccess(product?.sale_cents!=null,'Prezzo di vendita non definito',409);
   const customer=input.customer?string(input.customer,20):'';
-  requireAccess(!customer||db.prepare("SELECT u.id FROM users u LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=? AND u.role='client' AND COALESCE(a.state,'active')='active'").get(customer),
+  requireAccess(!customer||db.prepare("SELECT u.id FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=? AND u.role='client' AND COALESCE(a.state,'active')='active'").get(customer),
     'Cliente non autorizzato',400);
   const quote=customerQuote(db,customer,item,product.sale_cents,costs(db));
   requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: autorizzazione Owner necessaria':'Prezzo sotto costo: autorizzazione Owner necessaria',409);
@@ -288,8 +288,8 @@ route('GET','/api/tickets',null,({user,permissions})=>{
   requireAccess(manage || permissions.includes('tickets.use'));
   const rows=manage?db.prepare('SELECT * FROM tickets ORDER BY id DESC').all()
     :db.prepare('SELECT * FROM tickets WHERE customer=? ORDER BY id DESC').all(user.id);
-  const messages=db.prepare(`SELECT m.text,m.created_at,u.username FROM ticket_messages m
-    JOIN users u ON u.id=m.actor WHERE m.ticket_id=? ORDER BY m.id`);
+  const messages=db.prepare(`SELECT m.text,m.created_at,rp.name AS username FROM ticket_messages m
+    JOIN rp_profiles rp ON rp.id=m.actor WHERE m.ticket_id=? ORDER BY m.id`);
   return rows.map(row=>({...row,messages:messages.all(row.id)}));
 });
 route('POST','/api/tickets','tickets.use',({user,input})=>transaction(db,()=>{
@@ -364,11 +364,11 @@ createServer(async (req,res)=>{
       cookie(res,'',0);
       return answer(res,200,{ok:true});
     }
-    const user=session?.user_id?db.prepare(`SELECT u.*,a.display_name,COALESCE(a.state,'active') AS account_state
-      FROM users u LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=?`).get(session.user_id):null;
+    const user=session?.user_id?db.prepare(`SELECT u.*,a.display_name,rp.name AS visible_name,COALESCE(a.state,'active') AS account_state
+      FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=?`).get(session.user_id):null;
     if (user && user.id===OWNER_DISCORD_ID) user.role='owner';
     else if(user && user.account_state!=='active')user.role=user.account_state;
-    if(user?.display_name){user.discord_username=user.username;user.username=user.display_name;}
+    if(user && user.visible_name!==user.username){user.discord_username=user.username;user.username=user.visible_name;}
     const permissionSet=new Set(user?.role==='owner'?['owner',...actions]:defaults[user?.role]||[]);
     if (user && roles.includes(user.role)) {
       const overrides=db.prepare("SELECT permission,enabled FROM permissions WHERE (scope='role' AND subject=?) OR (scope='user' AND subject=?) ORDER BY scope").all(user.role,user.id);

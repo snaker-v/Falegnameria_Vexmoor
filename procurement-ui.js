@@ -288,7 +288,7 @@ export function extension(ctx) {
   async function owner(mode){
     const [users,overrides]=await Promise.all([api('owner-users'),api('permissions')]);
     const subjects=users.filter(r=>r.role!=='owner');
-    const target=pick('target',[...me.roles.map(r=>['role:'+r,roles[r]]),...subjects.map(u=>['user:'+u.id,(u.display_name||u.username)+' · utente'])]);
+    const target=pick('target',[...me.roles.map(r=>['role:'+r,roles[r]]),...subjects.map(u=>['user:'+u.id,(u.visible_name)+' · utente'])]);
     if(mode==='permissions'){
       const out=box('');
       async function draw(){
@@ -309,28 +309,28 @@ export function extension(ctx) {
       const main=u.role==='owner';
       const activity=await api('owner-activity',{id:u.id});
       const edit=form([
-        ['Nome visualizzato interno',field('display_name',u.display_name)],['Note amministrative',Object.assign(el('textarea',null,{name:'notes',rows:3,maxLength:1500}),{value:u.notes??''})],
+        ['Nome RP',field('rp_name',u.rp_name||u.name)],['Missiva',field('missiva',u.missiva)],['Note amministrative',Object.assign(el('textarea',null,{name:'notes',rows:3,maxLength:1500}),{value:u.notes??''})],
         ...(!main?[
           ['Ruolo',Object.assign(pick('role',[...me.roles,'pending','rejected'].map(x=>[x,roles[x]])),{value:u.role})],
           ['Stato',Object.assign(pick('state',Object.entries(statuses)),{value:u.state})],
         ]:[]),
       ],'Salva account',async d=>{
         if((d.state&&d.state!==u.state||d.role&&d.role!==u.role)&&!confirm('Confermi la modifica di ruolo o stato dell’account?'))return;
-        await api('owner-user',{...d,id:u.id,role:d.role??u.role,state:d.state??u.state});
+        await api('owner-user',{...d,display_name:u.display_name??'',id:u.id,role:d.role??u.role,state:d.state??u.state});
         await changed('owner','Account aggiornato.','drawer');
       });
       const permissionPanel=!main?el('details',null):null;
       if(permissionPanel)permissionPanel.append(el('summary','Permessi individuali'),await matrix(overrides,'user',u.id,()=>changed('owner','Permessi aggiornati.','drawer')));
-      drawer(u.display_name||u.username,el('p','Discord · '+u.username+' · '+u.id),badge(main?'Owner principale':statuses[u.state]),
+      drawer(u.visible_name,el('p','Discord · '+u.username+' · '+u.id),badge(main?'Owner principale':statuses[u.state]),
         ...(u.name?[panel('Richiesta di accesso',el('p',u.name),el('p',u.note||''),
           ...(!main&&u.state==='active'&&u.role==='pending'?[el('p','Per approvare la whitelist, assegna un ruolo e salva. Per rifiutare, seleziona Rifiutato.')]:[]))]:[]),
         edit,...(permissionPanel?[permissionPanel]:[]),
         panel('Attività e modifiche',activity.length?table(['Data','Operazione','Operatore'],activity.map(a=>[date(a.created_at),a.action,a.actor])):empty('Nessuna attività registrata.')));
     }
     function draw(){
-      const result=users.filter(u=>(!state.value||state.value===u.state)&&matches([u.username,u.display_name,u.name,u.id].join(' '),q.value));
-      out.replaceChildren(result.length?table(['Utente','Identità Discord','Ruolo','Stato','Richiesta'],
-        result.map(u=>[button(u.display_name||u.username,()=>person(u)),u.username,roles[u.role],badge(statuses[u.state],u.state==='active'?'good':'warn'),u.name??'—'])):
+      const result=users.filter(u=>(!state.value||state.value===u.state)&&matches([u.username,u.visible_name,u.name,u.missiva,u.id].join(' '),q.value));
+      out.replaceChildren(result.length?table(['Nome RP / Utente','Identità Discord','Missiva','Ruolo','Stato'],
+        result.map(u=>[button(u.visible_name,()=>person(u)),u.username,u.missiva||'—',roles[u.role],badge(statuses[u.state],u.state==='active'?'good':'warn')])):
         empty('Nessun utente corrisponde ai filtri.'));
     }
     q.oninput=state.onchange=draw;draw();

@@ -108,7 +108,18 @@ export function open(path) {
     `);
   });
   migrateProcurement(db);
-  transaction(db,()=>migrateEconomy(db));
+  transaction(db,()=>{
+    migrateEconomy(db);
+    if(db.prepare('PRAGMA user_version').get().user_version!==4)return;
+    db.exec(`
+      ALTER TABLE account_controls ADD COLUMN rp_name TEXT NOT NULL DEFAULT '';
+      ALTER TABLE account_controls ADD COLUMN missiva TEXT NOT NULL DEFAULT '';
+      CREATE VIEW rp_profiles AS SELECT u.id,
+        COALESCE(NULLIF(a.rp_name,''),NULLIF(r.name,''),NULLIF(a.display_name,''),u.username) AS name
+      FROM users u LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN requests r ON r.user_id=u.id;
+      PRAGMA user_version=5;
+    `);
+  });
   return db;
 }
 

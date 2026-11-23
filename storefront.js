@@ -72,7 +72,7 @@ function contact(quote) {
   root.append(box);
 }
 try {
-  me=await fetch('/api/me').then(r=>r.json());
+  if(new URLSearchParams(location.search).get('anteprima')!=='pubblica')me=await fetch('/api/me').then(r=>r.json());
   if(me.user){const access=document.getElementById('account');access.textContent='Gestionale';access.href='/gestionale';}
   const page=location.pathname;
   document.querySelectorAll('.store-header nav a').forEach(a=>{if(a.pathname===page)a.setAttribute('aria-current','page');});
