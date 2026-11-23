@@ -233,15 +233,18 @@ route('POST','/api/sales','sales.write',({user,input})=>transaction(db,()=>{
   const item=string(input.item,100),quantity=integer(input.quantity,1,10000);
   const product=db.prepare('SELECT name,sale_cents FROM items WHERE id=?').get(item);
   requireAccess(product?.sale_cents!=null,'Prezzo di vendita non definito',409);
+  const channel=input.channel??'counter';
+  requireAccess(['counter','display'].includes(channel),'Tipo di vendita non valido',400);
+  requireAccess(channel!=='display'||!input.customer,'La messa in vetrina usa il prezzo pubblico',400);
   const customer=input.customer?string(input.customer,20):'';
   requireAccess(!customer||db.prepare("SELECT u.id FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=? AND u.role='client' AND COALESCE(a.state,'active')='active'").get(customer),
     'Cliente non autorizzato',400);
   const quote=customerQuote(db,customer,item,product.sale_cents,costs(db));
   requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: autorizzazione Owner necessaria':'Prezzo sotto costo: autorizzazione Owner necessaria',409);
-  const {id}=db.prepare("INSERT INTO cash_entries(kind,cents,description,item_id,quantity,actor) VALUES('sale',?,?,?,?,?) RETURNING id")
-    .get(quote.cents*quantity,product.name,item,quantity,user.id);
-  move(db,user.id,item,-quantity,'Vendita diretta #'+id);
-  audit(db,user.id,'sale.created',{id,customer:customer||null,unit_cents:quote.cents});
+  const {id}=db.prepare("INSERT INTO cash_entries(kind,cents,description,item_id,quantity,actor,sale_channel) VALUES('sale',?,?,?,?,?,?) RETURNING id")
+    .get(quote.cents*quantity,product.name,item,quantity,user.id,channel);
+  move(db,user.id,item,-quantity,(channel==='display'?'Messa in vetrina':'Vendita diretta')+' #'+id);
+  audit(db,user.id,channel==='display'?'sale.display':'sale.created',{id,customer:customer||null,unit_cents:quote.cents});
   return {id};
 }));
 route('POST','/api/cash-entries','cash.write',({user,input})=>transaction(db,()=>{

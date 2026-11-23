@@ -325,10 +325,11 @@ export function operations(ctx) {
     });
     return [title('Contabilità','Segui gli incassi verificati, i movimenti da riscontrare e i costi delle forniture.',allowed('cash.write')?button('＋ Movimento',()=>modal('Registra movimento',entryForm)):null),metrics(...stats),box('dashboard-grid',...columns),
       panel('Registro incassi',box('toolbar',filter),output),
-      panel('Vendite, rimborsi e rettifiche',entries.length?table(['Data','Tipo','Descrizione','Importo'],entries.map(r=>[age(r.created_at),entryLabels[r.kind],r.description,money(r.cents)])):empty('Nessun movimento registrato.')),
+      panel('Vendite, rimborsi e rettifiche',entries.length?table(['Data','Tipo','Descrizione','Importo'],entries.map(r=>[age(r.created_at),entryType(r),r.description,money(r.cents)])):empty('Nessun movimento registrato.')),
       ...(allowed('suppliers.read')?[panel('Registro acquisti',purchases.length?table(['Data','Fornitore','Materiale','Totale'],purchases.map(p=>[age(p.created_at),p.supplier_name,p.item_name,money(p.cents)])):empty('Nessun acquisto registrato.'))]:[])];
   }
 
+  const entryType=r=>r.kind==='sale'&&r.sale_channel==='display'?'Messa in vetrina':entryLabels[r.kind];
   const entryLabels={sale:'Vendita diretta',expense:'Spesa',refund:'Rimborso',adjustment:'Rettifica'};
   const cashFlow=(receipts,purchases,entries)=>[
     [...receipts,...entries.filter(r=>r.cents>0).map(r=>({...r,verified_by:true}))],
@@ -337,7 +338,7 @@ export function operations(ctx) {
   async function sales(){
     const [catalog,rows,clients]=await Promise.all([api('catalog'),api('sales'),api('sale-customers')]);
     const priced=catalog.filter(p=>p.sale_cents!==null);
-    function newSale(){
+    function newSale(display=false){
       const customer=pick('customer',[['','Prezzo pieno'],...clients.map(c=>[c.id,c.name])]);
       customer.required=false;
       const article=pick('item',priced.map(p=>[p.id,p.name+' · '+money(p.sale_cents)]));
@@ -352,18 +353,19 @@ export function operations(ctx) {
         }catch(error){if(current===generation)feedback.textContent=error.message;}
       }
       article.onchange=customer.onchange=()=>void quote();
-      const entry=form([['Articolo',article],['Cliente',customer],['Pezzi',Object.assign(input('quantity','number'),{min:1,max:10000,value:1})]],
-        'Registra vendita',async d=>{
+      const entry=form([['Articolo',article],...(!display?[['Cliente',customer]]:[]),['Pezzi',Object.assign(input('quantity','number'),{min:1,max:10000,value:1})]],
+        display?'Registra messa in vetrina':'Registra vendita',async d=>{
           const quote=await api('sale-quote',{item:d.item,customer:d.customer});
           if(quote.blocked)throw Error('Serve l’autorizzazione dell’Owner per questo prezzo.');
-          if(!confirm('Confermi '+money(quote.cents*Number(d.quantity))+' di incasso e lo scarico dal magazzino?'))return;
-          await api('sales',{item:d.item,quantity:Number(d.quantity),customer:d.customer});
-          document.getElementById('modal').close();await show('sales');status('Vendita registrata.');
+          const action=display?' come ricavo da vetrina e lo scarico dal deposito?':' di incasso e lo scarico dal magazzino?';
+          if(!confirm('Confermi '+money(quote.cents*Number(d.quantity))+action))return;
+          await api('sales',{item:d.item,quantity:Number(d.quantity),customer:d.customer,channel:display?'display':'counter'});
+          document.getElementById('modal').close();await show('sales');status(display?'Messa in vetrina contabilizzata.':'Vendita registrata.');
         });
-      modal('Vendita diretta',feedback,entry);void quote();
+      modal(display?'Messa in vetrina':'Vendita diretta',...(display?[el('p','Registrala una sola volta: il ricavo viene già conteggiato alla messa in vetrina.')]:[]),feedback,entry);void quote();
     }
-    return [title('Vendite dirette','Registro delle vendite al banco.',priced.length?button('＋ Nuova vendita',newSale):null),
-      rows.length?table(['Data','Articolo','Quantità','Incasso'],rows.map(r=>[age(r.created_at),r.description,r.quantity,money(r.cents)]))
+    return [title('Vendite dirette','Vendite al banco e ricavi da merce messa in vetrina.',priced.length?box('quick-actions',button('＋ Nuova vendita',()=>newSale()),button('＋ Messa in vetrina',()=>newSale(true))):null),
+      rows.length?table(['Data','Tipo','Articolo','Quantità','Ricavo'],rows.map(r=>[age(r.created_at),entryType(r),r.description,r.quantity,money(r.cents)]))
         :empty(priced.length?'Nessuna vendita registrata.':'Imposta i prezzi in Catalogo e prezzi prima di registrare una vendita.')];
   }
   async function people(staff){
@@ -380,7 +382,7 @@ export function operations(ctx) {
       const rows=[['Data UTC','Tipo','Riferimento','Importo in centesimi RP'],
         ...receipts.map(r=>[r.created_at,r.verified_by?'Incasso verificato':'Incasso da verificare','Ordine #'+r.order_id,r.cents]),
         ...purchases.map(r=>[r.created_at,'Acquisto',r.supplier_name,-r.cents]),
-        ...entries.map(r=>[r.created_at,entryLabels[r.kind],r.description,r.cents])];
+        ...entries.map(r=>[r.created_at,entryType(r),r.description,r.cents])];
       const url=URL.createObjectURL(new Blob(['\uFEFF',rows.map(r=>r.map(quote).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
       const link=el('a',null,{href:url,download:'Registro_Vexmoor.csv'});link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }

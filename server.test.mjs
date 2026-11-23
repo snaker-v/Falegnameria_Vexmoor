@@ -249,6 +249,17 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     await post('economy-restore',{id:restore.id});
     assert.equal((await post('estimate',{id:'zaino piccolo',quantity:1})).unit,null);
     assert.equal(db.prepare('SELECT cents FROM order_lines WHERE order_id=?').get(discounted.id).cents,95);
+    const displayStock=stock('ascia');
+    await post('sales',{item:'ascia',quantity:2,channel:'display'});
+    assert.equal(stock('ascia'),displayStock-2);
+    const display=(await get('cash-entries')).find(r=>r.sale_channel==='display');
+    assert.equal(display.cents,200);
+    assert.equal(display.kind,'sale');
+    assert.equal(display.quantity,2);
+    await post('sales',{item:'ascia',quantity:displayStock,channel:'display'},409);
+    assert.equal(stock('ascia'),displayStock-2);
+    assert.equal((await get('sales')).filter(r=>r.sale_channel==='display').length,1);
+    assert.match((await post('item-moves',{item:'ascia'}))[0].reason,/Messa in vetrina/);
     const log=await get('audit');
     for(const action of ['account.updated','permissions.matrix','stock.item','stock.batch','purchase.received','purchase.payment','production'])
       assert(log.some(r=>r.action===action),action);

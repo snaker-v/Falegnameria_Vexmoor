@@ -120,6 +120,13 @@ export function open(path) {
       PRAGMA user_version=5;
     `);
   });
+  transaction(db,()=>{
+    if(db.prepare('PRAGMA user_version').get().user_version!==5)return;
+    db.exec(`
+      ALTER TABLE cash_entries ADD COLUMN sale_channel TEXT NOT NULL DEFAULT 'counter' CHECK(sale_channel IN ('counter','display'));
+      PRAGMA user_version=6;
+    `);
+  });
   return db;
 }
 
