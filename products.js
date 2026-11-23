@@ -54,4 +54,4 @@ export const catalogImages = Object.freeze({
   "cassaforte grande 500 kg": "catalog-images/36.webp"
 });
 export const photo = (name,id=name.toLocaleLowerCase('it'))=>'/'+(Object.hasOwn(catalogImages,id)?catalogImages[id]:category(name)+'.webp');
-export const euro = cents=>cents==null?'Su preventivo':new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(cents)+' $';
+export const euro = cents=>cents==null?'Su preventivo':new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(cents/100)+' $';
