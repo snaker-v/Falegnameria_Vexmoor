@@ -1,5 +1,5 @@
 import { costDetails } from './economy-ui.js';
-import { categories,category,photo } from './products.js';
+import { categories,category,photo,catalogImages } from './products.js';
 
 export function operations(ctx) {
   const {el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me,inventoryTools}=ctx;
@@ -9,7 +9,7 @@ export function operations(ctx) {
   const empty=text=>box('empty',el('span','◇',{className:'empty-symbol'}),el('p',text));
   const panel=(name,...children)=>box('panel',el('h2',name),...children);
   const metrics=(...items)=>box('metrics',...items.map(([label,value,note])=>box('metric',el('span',label),el('strong',String(value)),el('small',note))));
-  const pict=(name,cls='')=>el('img',null,{src:photo(name),alt:'Fotografia di categoria · '+categories[category(name)][0],className:cls,loading:'lazy'});
+  const pict=(name,id)=>el('img',null,{src:photo(name,id),alt:Object.hasOwn(catalogImages,id)?name:'Fotografia di categoria · '+categories[category(name)][0],loading:'lazy'});
   const query=(label)=>{const e=input('search','search',false);e.placeholder=label;e.setAttribute('aria-label',label);return e;};
   const age=(date)=>date?new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Rome'}).format(new Date(date.replace(' ','T')+'Z')):'—';
   const match=(text,value)=>String(text).toLowerCase().includes(value.trim().toLowerCase());
@@ -141,7 +141,7 @@ export function operations(ctx) {
       const state=i=>i.stock===0?badge('Esaurito','bad'):i.stock<i.minimum?badge('Scorta bassa','warn'):badge('Disponibile','good');
       grid.replaceChildren(mode==='table'?table(['Materiale','Categoria','Quantità','Valore unitario','Stato'],rows.map(i=>[
         button(i.name,()=>details(i)),i.category||categories[category(i.name)][0],i.stock,money(i.reference_cents),state(i)
-      ])):box('stock-grid',...rows.map(i=>box('panel stock-card',pict(i.name),button(i.name,()=>details(i)),box('split',el('strong',i.stock+' pz'),state(i)),el('small',money(i.reference_cents)+' / pz')))));
+      ])):box('stock-grid',...rows.map(i=>box('panel stock-card',pict(i.name,i.id),button(i.name,()=>details(i)),box('split',el('strong',i.stock+' pz'),state(i)),el('small',money(i.reference_cents)+' / pz')))));
     }
     const modeSwitch=pick('mode',[['table','Vista operativa'],['cards','Vista visuale']]);
     modeSwitch.setAttribute('aria-label','Modalità inventario');
@@ -208,7 +208,7 @@ export function operations(ctx) {
       active=item;quantity.value=item.yield_qty;draw();
       job.replaceChildren(new Option('Produzione per magazzino',''));
       for(const o of orders.filter(o=>['accepted','preparing','producing'].includes(o.status)&&o.lines.some(l=>l.item_id===item.id)))job.add(new Option('Commessa #'+o.id+' · '+label(o),o.id));
-      center.replaceChildren(box('lab-photo',pict(item.name),box('lab-caption',el('p',categories[category(item.name)][0],{className:'eyebrow'}),el('h2',item.name))),
+      center.replaceChildren(box('lab-photo',pict(item.name,item.id),box('lab-caption',el('p',categories[category(item.name)][0],{className:'eyebrow'}),el('h2',item.name))),
         box('panel',box('toolbar',labelField('Pezzi desiderati',quantity),labelField('Produci intermedi',intermediate),...(allowed('orders.manage')?[labelField('Ordine associato',job)]:[])),batches),
         panel('Distinta dei materiali',box('tree-slot')));
       schedule();
@@ -217,7 +217,7 @@ export function operations(ctx) {
       const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||(i.category||category(i.name))===filter.value));
       list.replaceChildren(...(rows.length?rows.map(item=>{
         const b=button('',()=>select(item));b.className='recipe-pick';b.setAttribute('aria-current',String(active?.id===item.id));
-        b.append(pict(item.name),box('',el('strong',item.name),el('small',item.yield_qty+' pz / craft')));return b;
+        b.append(pict(item.name,item.id),box('',el('strong',item.name),el('small',item.yield_qty+' pz / craft')));return b;
       }):[empty('Nessuna ricetta trovata.')]));
     }
     search.oninput=filter.onchange=draw;

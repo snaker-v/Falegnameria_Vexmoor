@@ -1,4 +1,4 @@
-import { categories,category,photo,euro } from './products.js';
+import { categories,category,photo,euro,catalogImages } from './products.js';
 const root=document.querySelector('main');
 const make=(tag,text,props={})=>Object.assign(document.createElement(tag),text==null?props:{textContent:text,...props});
 const link=(text,href,cls='button')=>make('a',text,{href,className:cls});
@@ -18,7 +18,9 @@ function card(item) {
   const cta=link(order&&(me.permissions.includes('orders.create')||!me.user)?'Ordina':'Chiedi un preventivo',action,'button outline');
   if(order&&!me.user)cta.addEventListener('click',()=>sessionStorage.setItem('vexmoor-order-item',item.id));
   detail.append(footer,cta);
-  return section('product-card',image(photo(item.name),categories[id][0]+' · fotografia di categoria'),detail);
+  const picture=image(photo(item.name,item.id),item.name);
+  if(Object.hasOwn(catalogImages,item.id))picture.classList.add('product-photo');
+  return section('product-card',picture,detail);
 }
 function catalog(items) {
   const query=make('input',null,{type:'search',placeholder:'Cerca un prodotto…'});

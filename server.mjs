@@ -1,3 +1,4 @@
+import { catalogImages } from './products.js';
 import { registerEconomy } from './economy-routes.mjs';
 import { costs, customerQuote } from './economy.mjs';
 import { registerProcurement, purchasePermissions } from './procurement-routes.mjs';
@@ -36,6 +37,7 @@ for (const page of ['/catalogo','/bottega','/preventivo','/assistenza']) files.s
 files.set('/gestionale',['workspace.html','text/html']);
 for (const name of ['storefront','products','operations','procurement-ui','economy-ui']) files.set('/'+name+'.js',[name+'.js','text/javascript']);
 for (const name of ['casse','attrezzi','legname','equipaggiamento','strutture','accessori']) files.set('/'+name+'.webp',[name+'.webp','image/webp']);
+for (const file of Object.values(catalogImages)) files.set('/'+file,[file,'image/webp']);
 class HttpError extends Error { constructor(status,message){ super(message); this.status=status; } }
 const requireAccess = (condition,message='Accesso negato',status=403) => { if (!condition) throw new HttpError(status,message); };
 const string = (value,max=400) => {

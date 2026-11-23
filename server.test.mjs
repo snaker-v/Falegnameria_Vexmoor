@@ -1,3 +1,4 @@
+import { catalogImages } from './products.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -62,6 +63,15 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     };
     assert.equal((await request('/')).status,200);
     assert.equal((await request('/bottega.webp')).headers.get('content-type'),'image/webp');
+    const catalog=await (await request('/api/catalog')).json();
+    const images=catalog.map(item=>catalogImages[item.id]);
+    assert.equal(new Set(images).size,catalog.length);
+    assert(images.every(Boolean));
+    for(const image of images){
+      const response=await request('/'+image);
+      assert.equal(response.headers.get('content-type'),'image/webp');
+      assert.equal(Buffer.from(await response.arrayBuffer()).subarray(8,12).toString(),'WEBP');
+    }
     assert.equal((await request('/api/inventory')).status,403);
     assert.equal((await request('/auth/callback?code=123&state=123')).status,400);
     assert.equal((await request('/api/catalog',customer,{id:'ascia',cents:100})).status,403);

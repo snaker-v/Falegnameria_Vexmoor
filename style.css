@@ -20,3 +20,4 @@ dialog{padding:0;background:var(--surface);color:var(--ink);border:1px solid var
 .permission-editor>.table{width:100%}
 .permission-editor input{accent-color:var(--accent)}
 @media(max-width:760px){.top-tools .public-preview span{display:none}.top-tools .public-preview{padding:.39rem .66rem}}
+.product-card img.product-photo{object-fit:contain;background:#30281b}
