@@ -1,0 +1,1682 @@
+{
+  "recipes": [
+    {
+      "name": "Ascia",
+      "yieldQty": 8,
+      "ingredients": [
+        {
+          "name": "ferro",
+          "qty": 4
+        },
+        {
+          "name": "acciaio",
+          "qty": 2
+        },
+        {
+          "name": "asse di legno",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "name": "Assi di legno",
+      "yieldQty": 4,
+      "ingredients": [
+        {
+          "name": "legno",
+          "qty": 40
+        }
+      ]
+    },
+    {
+      "name": "Assi di legno pregiato",
+      "yieldQty": 4,
+      "ingredients": [
+        {
+          "name": "legno pregiato",
+          "qty": 40
+        }
+      ]
+    },
+    {
+      "name": "Cassa sotterrabile",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "lingotto di ferro",
+          "qty": 1
+        },
+        {
+          "name": "chiodi",
+          "qty": 10
+        },
+        {
+          "name": "lingotto acciaio temperato",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "name": "Zaino piccolo",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "pelliccia",
+          "qty": 10
+        },
+        {
+          "name": "argento",
+          "qty": 20
+        },
+        {
+          "name": "fibra",
+          "qty": 30
+        }
+      ]
+    },
+    {
+      "name": "Portachiavi",
+      "yieldQty": 5,
+      "ingredients": [
+        {
+          "name": "lingotto di rame",
+          "qty": 1
+        },
+        {
+          "name": "ferro",
+          "qty": 5
+        },
+        {
+          "name": "acciaio",
+          "qty": 5
+        }
+      ]
+    },
+    {
+      "name": "Carbone",
+      "yieldQty": 20,
+      "ingredients": [
+        {
+          "name": "legno",
+          "qty": 20
+        }
+      ]
+    },
+    {
+      "name": "Pala",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "ferro",
+          "qty": 5
+        },
+        {
+          "name": "legno",
+          "qty": 6
+        }
+      ]
+    },
+    {
+      "name": "Staccionata",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "legno",
+          "qty": 8
+        },
+        {
+          "name": "chiodi",
+          "qty": 5
+        },
+        {
+          "name": "legno pregiato",
+          "qty": 8
+        }
+      ]
+    },
+    {
+      "name": "Canaletta piccola",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "asse di legno pregiato",
+          "qty": 1
+        },
+        {
+          "name": "assi di legno",
+          "qty": 5
+        },
+        {
+          "name": "chiodi",
+          "qty": 5
+        }
+      ]
+    },
+    {
+      "name": "Secchio pepite",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "ferro",
+          "qty": 10
+        }
+      ]
+    },
+    {
+      "name": "Secchio acqua",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "legno pregiato",
+          "qty": 10
+        },
+        {
+          "name": "legno",
+          "qty": 20
+        }
+      ]
+    },
+    {
+      "name": "Mortaio",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "ferro",
+          "qty": 10
+        },
+        {
+          "name": "acciaio",
+          "qty": 10
+        },
+        {
+          "name": "quarzo grezzo",
+          "qty": 5
+        }
+      ]
+    },
+    {
+      "name": "Tagliatore di gemme",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "ferro",
+          "qty": 10
+        },
+        {
+          "name": "acciaio",
+          "qty": 10
+        },
+        {
+          "name": "pirite grezza",
+          "qty": 3
+        }
+      ]
+    },
+    {
+      "name": "Coltello da intaglio",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "legno",
+          "qty": 10
+        },
+        {
+          "name": "legno di mogano",
+          "qty": 3
+        },
+        {
+          "name": "chiodi",
+          "qty": 10
+        }
+      ]
+    },
+    {
+      "name": "Banco da lavoro",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno",
+          "qty": 2
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 2
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 2
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Cassa piccola chiusa",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 2
+        },
+        {
+          "name": "chiodi",
+          "qty": 10
+        },
+        {
+          "name": "assi di legno",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Freezer",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 4
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 2
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Zaino medio",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "pelliccia",
+          "qty": 15
+        },
+        {
+          "name": "lingotti d'argento",
+          "qty": 2
+        },
+        {
+          "name": "fibra",
+          "qty": 30
+        }
+      ]
+    },
+    {
+      "name": "Ascia migliorata",
+      "yieldQty": 5,
+      "ingredients": [
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 2
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 2
+        },
+        {
+          "name": "assi di legno",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Carriola smontata",
+      "yieldQty": 4,
+      "ingredients": [
+        {
+          "name": "assi di legno",
+          "qty": 2
+        },
+        {
+          "name": "lingotto acciaio temperato",
+          "qty": 1
+        },
+        {
+          "name": "chiodi",
+          "qty": 30
+        },
+        {
+          "name": "lingotti di rame",
+          "qty": 2
+        },
+        {
+          "name": "lingotto di ferro",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "name": "Tenda piccola",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "chiodi",
+          "qty": 30
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 2
+        },
+        {
+          "name": "lingotto acciaio temperato",
+          "qty": 1
+        },
+        {
+          "name": "assi di legno",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Torcia",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "legno",
+          "qty": 4
+        },
+        {
+          "name": "carbone",
+          "qty": 7
+        }
+      ]
+    },
+    {
+      "name": "Cassa piccola treno smontata",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 8
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 10
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 10
+        }
+      ]
+    },
+    {
+      "name": "Canaletta grande",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 6
+        },
+        {
+          "name": "assi di legno",
+          "qty": 5
+        },
+        {
+          "name": "chiodi",
+          "qty": 20
+        }
+      ]
+    },
+    {
+      "name": "Cassa media chiusa",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno",
+          "qty": 5
+        },
+        {
+          "name": "chiodi",
+          "qty": 20
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 4
+        }
+      ]
+    },
+    {
+      "name": "Ascia di ferro",
+      "yieldQty": 5,
+      "ingredients": [
+        {
+          "name": "diamanti grezzi",
+          "qty": 4
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 2
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 2
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Baule grande",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 4
+        },
+        {
+          "name": "lingotti d'argento",
+          "qty": 10
+        }
+      ]
+    },
+    {
+      "name": "Tenda grande",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "lingotto di ferro",
+          "qty": 1
+        },
+        {
+          "name": "chiodi",
+          "qty": 30
+        },
+        {
+          "name": "lingotto acciaio temperato",
+          "qty": 1
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 2
+        },
+        {
+          "name": "assi di legno",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Cassa media treno smontata",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "lingotti di ferro",
+          "qty": 20
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 20
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 16
+        }
+      ]
+    },
+    {
+      "name": "Zaino grande",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "pelliccia",
+          "qty": 25
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 2
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 2
+        },
+        {
+          "name": "lana lavorata",
+          "qty": 25
+        }
+      ]
+    },
+    {
+      "name": "Cassa grande chiusa",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 12
+        },
+        {
+          "name": "chiodi",
+          "qty": 40
+        },
+        {
+          "name": "assi di legno",
+          "qty": 12
+        }
+      ]
+    },
+    {
+      "name": "Ascia di acciaio",
+      "yieldQty": 3,
+      "ingredients": [
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 3
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 3
+        },
+        {
+          "name": "diamanti grezzi",
+          "qty": 4
+        },
+        {
+          "name": "assi di legno pregiato",
+          "qty": 3
+        }
+      ]
+    },
+    {
+      "name": "Cassa grande treno smontata",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "assi di legno pregiato",
+          "qty": 32
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 30
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 30
+        }
+      ]
+    },
+    {
+      "name": "Cassaforte 160 kg",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "lingotti di ferro",
+          "qty": 8
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 8
+        },
+        {
+          "name": "pepite d'oro",
+          "qty": 30
+        },
+        {
+          "name": "lingotti d'argento",
+          "qty": 24
+        }
+      ]
+    },
+    {
+      "name": "Cassaforte grande 500 kg",
+      "yieldQty": 1,
+      "ingredients": [
+        {
+          "name": "pepite d'oro",
+          "qty": 60
+        },
+        {
+          "name": "lingotti di ferro",
+          "qty": 15
+        },
+        {
+          "name": "lingotti acciaio temperato",
+          "qty": 15
+        },
+        {
+          "name": "lingotti d'argento",
+          "qty": 36
+        }
+      ]
+    }
+  ],
+  "prices": [
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Ascia",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Ascia migliorata",
+      "cents": 400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Assi di legno",
+      "cents": 250,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Assi di legno pregiato",
+      "cents": 300,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Carbone",
+      "cents": 20,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Cassa grande chiusa",
+      "cents": 20000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Cassa media chiusa",
+      "cents": 10000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Cassa piccola chiusa",
+      "cents": 3000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Pala",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Secchio acqua",
+      "cents": 300,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Saint Denis",
+      "name": "Tagliatore di gemme",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Cassa grande chiusa",
+      "cents": 12000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Cassa grande treno smontata",
+      "cents": 25000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Cassa media chiusa",
+      "cents": 7000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Cassa piccola chiusa",
+      "cents": 4000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Chiodo",
+      "cents": 15,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Lingotto di rame",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Piccone",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Piccone di acciaio",
+      "cents": 650,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Piccone di ferro",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Piccone migliorato",
+      "cents": 300,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Saint Denis",
+      "name": "Portachiavi",
+      "cents": 450,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Ascia",
+      "cents": 90,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Ascia di acciaio",
+      "cents": 750,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Ascia di ferro",
+      "cents": 400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Ascia migliorata",
+      "cents": 300,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Assi di legno",
+      "cents": 125,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Assi di legno pregiato",
+      "cents": 180,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Baule grande",
+      "cents": 18000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Canaletta grande",
+      "cents": 3000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Canaletta piccola",
+      "cents": 1500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Carbone",
+      "cents": 15,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Carriola smontata",
+      "cents": 600,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa grande chiusa",
+      "cents": 10500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa grande treno smontata",
+      "cents": 35000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa media chiusa",
+      "cents": 4500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa piccola chiusa",
+      "cents": 2000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa piccola treno smontata",
+      "cents": 10000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Cassa sotterrabile",
+      "cents": 1000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Coltello da intaglio",
+      "cents": 420,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Pala",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Secchio acqua",
+      "cents": 400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Blackwater",
+      "name": "Secchio pepite",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Carbone",
+      "cents": 15,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa grande chiusa",
+      "cents": 11000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa grande rinforzata chiusa",
+      "cents": 25000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa grande treno smontata",
+      "cents": 30000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa piccola",
+      "cents": 12000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa piccola chiusa",
+      "cents": 1500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Cassa sotterrabile",
+      "cents": 1400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Chiodo",
+      "cents": 15,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Lingotto di ferro",
+      "cents": 250,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Lingotto di rame",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Pala",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Piccone",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Piccone di acciaio",
+      "cents": 600,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Piccone di ferro",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Portachiavi",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Secchio acqua",
+      "cents": 380,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Secchio pepite",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Zaino del minatore",
+      "cents": 2000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Blackwater",
+      "name": "Zaino del taglialegna",
+      "cents": 2000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Acciaio temperato",
+      "cents": 250,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Baule grande",
+      "cents": 15000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Canaletta grande",
+      "cents": 3525,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Canaletta piccola",
+      "cents": 1560,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Carbone",
+      "cents": 15,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Carriola smontata",
+      "cents": 1350,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa grande chiusa",
+      "cents": 12000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa grande treno smontata",
+      "cents": 50000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa media chiusa",
+      "cents": 4700,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa media treno smontata",
+      "cents": 10000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa piccola",
+      "cents": 9000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa piccola chiusa",
+      "cents": 990,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa piccola treno smontata",
+      "cents": 4950,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa senza lucchetto",
+      "cents": 14000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassa sotterrabile",
+      "cents": 875,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassaforte",
+      "cents": 39900,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Cassaforte grande",
+      "cents": 84900,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Chiodo",
+      "cents": 20,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Coltello da intaglio",
+      "cents": 525,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Freezer",
+      "cents": 5400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Lingotto di rame",
+      "cents": 180,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Mortaio",
+      "cents": 400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Pala",
+      "cents": 165,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Piccone",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Piccone di acciaio",
+      "cents": 750,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Piccone di ferro",
+      "cents": 550,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Piccone migliorato",
+      "cents": 350,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Portachiavi",
+      "cents": 75,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Secchio acqua",
+      "cents": 375,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Secchio pepite",
+      "cents": 120,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Tagliatore di gemme",
+      "cents": 320,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Zaino del minatore",
+      "cents": 2000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Zaino grande",
+      "cents": 5000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Zaino medio",
+      "cents": 3500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Strawberry",
+      "name": "Zaino piccolo",
+      "cents": 2250,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Ascia",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Ascia di acciaio",
+      "cents": 800,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Assi di legno",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Assi di legno pregiato",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Canaletta grande",
+      "cents": 3000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Cassa grande chiusa",
+      "cents": 15000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Cassa grande treno smontata",
+      "cents": 75000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Cassa media chiusa",
+      "cents": 6000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Cassa piccola chiusa",
+      "cents": 3000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Coltello da intaglio",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Freezer",
+      "cents": 8000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Mortaio",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Pala",
+      "cents": 150,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Portachiavi",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Secchio acqua",
+      "cents": 400,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Secchio pepite",
+      "cents": 100,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Falegnameria",
+      "city": "Valentine",
+      "name": "Tagliatore di gemme",
+      "cents": 500,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Acciaio temperato",
+      "cents": 250,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Ascia",
+      "cents": 150,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Carbone",
+      "cents": 20,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Cassa grande chiusa",
+      "cents": 13000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Cassa media chiusa",
+      "cents": 6000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Cassa piccola chiusa",
+      "cents": 4000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Chiodo",
+      "cents": 30,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Coltello da intaglio",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Freezer",
+      "cents": 5000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Lingotto di rame",
+      "cents": 200,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Piccone",
+      "cents": 150,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Portachiavi",
+      "cents": 300,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Secchio pepite",
+      "cents": 120,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Zaino del minatore",
+      "cents": 5000,
+      "observed": "2026-11-22",
+      "note": ""
+    },
+    {
+      "business": "Fabbro",
+      "city": "Rhodes",
+      "name": "Zaino piccolo",
+      "cents": 3000,
+      "observed": "2026-11-22",
+      "note": ""
+    }
+  ]
+}
