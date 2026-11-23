@@ -97,7 +97,19 @@ export function extension(ctx) {
       const local=alternatives.find(o=>o.city==='Rhodes');
       if(local&&row.best!==null)rationale+=' Risparmio rispetto a '+local.name+' di Rhodes '+money(local.total-row.best)+'.';
       if(row.winners.some(o=>o.available===null))rationale+=' Verifica la disponibilità prima di ordinare.';
-      const header=panel('Suggerimento di acquisto',el('p',rationale),
+      const pricing=[el('p','Costo standard '+money(row.standard_cents)+' / pz · '+(row.standard_source??'Fonte non indicata')+
+        ' · ultimo aggiornamento '+date(row.standard_date))];
+      if(allowed('owner'))pricing.push(button('Modifica riferimento economico',()=>{
+        close('drawer');
+        modal('Riferimento · '+row.name,form([
+          ['Riferimento (centesimi RP)',num('cents',row.reference_cents,false)],
+          ['Fornitore o fonte del riferimento',field('source',row.reference_source)],
+        ],'Salva riferimento',async d=>{
+          await api('economy-material',{id:row.id,cents:nullable(d.cents),source:d.source});
+          await changed('purchases','Riferimento aggiornato.');
+        }));
+      }));
+      const header=panel('Suggerimento di acquisto',el('p',rationale),...pricing,
         ...(row.ford.length?[el('p',row.ford.map(f=>f.quantity+' pz da '+f.ford_source).join(', ')+' confermati e ancora da ricevere.')]:[]));
       const list=row.options.length?table(['Fornitore','Città','Unitario','Sconto','Trasporto','Totale comparabile','Differenza','Disponibilità','Rilevazione'],
         row.options.map(o=>[o.name,o.city,money(o.unit_cents),o.discount_bps?(o.discount_bps/100)+'%':'—',money(o.transport_cents),money(o.total),
@@ -336,10 +348,9 @@ export function extension(ctx) {
         ['Nome',field('name',item?.name,'text',true)],['Tipo',types],['Categoria',field('category',item?.category)],
         ['Descrizione',Object.assign(el('textarea',null,{name:'description',rows:3}),{value:item?.description??''})],
         ['Valore unitario di riferimento (centesimi RP)',num('reference_cents',item?.reference_cents,false)],
-        ['Prezzo di vendita (centesimi RP)',num('sale_cents',item?.sale_cents,false)],
         ['Scorta minima',Object.assign(num('minimum',item?.minimum??0),{min:0})],['Fornitore associato',vendor],
       ],'Salva articolo',async d=>{
-        await api('stock-item',{...d,id:item?.id,reference_cents:nullable(d.reference_cents),sale_cents:nullable(d.sale_cents),
+        await api('stock-item',{...d,id:item?.id,reference_cents:nullable(d.reference_cents),
           minimum:Number(d.minimum),supplier_id:nullable(d.supplier_id)});
         close('drawer');await changed('stock','Anagrafica salvata.');
       }));

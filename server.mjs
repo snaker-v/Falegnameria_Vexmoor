@@ -1,3 +1,5 @@
+import { registerEconomy } from './economy-routes.mjs';
+import { costs, customerQuote } from './economy.mjs';
 import { registerProcurement, purchasePermissions } from './procurement-routes.mjs';
 import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
@@ -32,7 +34,7 @@ const actions = [...new Set(Object.values(defaults).flat())];
 const files = new Map([['/',['index.html','text/html']],['/app.js',['app.js','text/javascript']],['/style.css',['style.css','text/css']],['/bottega.webp',['bottega.webp','image/webp']]]);
 for (const page of ['/catalogo','/bottega','/preventivo','/assistenza']) files.set(page,files.get('/'));
 files.set('/gestionale',['workspace.html','text/html']);
-for (const name of ['storefront','products','operations','procurement-ui']) files.set('/'+name+'.js',[name+'.js','text/javascript']);
+for (const name of ['storefront','products','operations','procurement-ui','economy-ui']) files.set('/'+name+'.js',[name+'.js','text/javascript']);
 for (const name of ['casse','attrezzi','legname','equipaggiamento','strutture','accessori']) files.set('/'+name+'.webp',[name+'.webp','image/webp']);
 class HttpError extends Error { constructor(status,message){ super(message); this.status=status; } }
 const requireAccess = (condition,message='Accesso negato',status=403) => { if (!condition) throw new HttpError(status,message); };
@@ -151,15 +153,6 @@ route('POST','/api/market','market.write',({user,input})=>{
   });
   return {ok:true};
 });
-route('POST','/api/catalog','catalog.write',({user,input})=>{
-  const id=string(input.id,100);
-  const cents=input.cents===null?null:integer(input.cents,0,100000000);
-  transaction(db,()=>{
-    requireAccess(db.prepare("UPDATE items SET sale_cents=? WHERE id=? AND (kind='finished' OR id IN (SELECT item_id FROM recipes))").run(cents,id).changes===1,'Articolo non trovato',404);
-    audit(db,user.id,'catalog',{id,cents});
-  });
-  return {ok:true};
-});
 const orderLines=db.prepare('SELECT item_id,name,quantity,cents FROM order_lines WHERE order_id=? ORDER BY name');
 const orderTotal = lines => lines.reduce((sum,line)=>sum+line.quantity*line.cents,0);
 route('GET','/api/orders',null,({user,permissions})=>{
@@ -179,6 +172,7 @@ route('POST','/api/orders','orders.create',({user,input})=>{
   return transaction(db,()=>{
     const {id}=db.prepare('INSERT INTO orders(customer,note) VALUES(?,?) RETURNING id').get(user.id,input.note);
     const seen=new Set();
+    const model=costs(db);
     for (const line of input.lines) {
       requireAccess(line && typeof line==='object','Riga ordine non valida',400);
       const item=string(line.id,100);
@@ -187,7 +181,9 @@ route('POST','/api/orders','orders.create',({user,input})=>{
       const qty=integer(line.qty,1,10000);
       const product=db.prepare("SELECT name,sale_cents FROM items WHERE id=? AND (kind='finished' OR id IN (SELECT item_id FROM recipes))").get(item);
       requireAccess(product?.sale_cents!=null,'Articolo senza prezzo di vendita',409);
-      db.prepare('INSERT INTO order_lines VALUES(?,?,?,?,?)').run(id,item,product.name,qty,product.sale_cents);
+      const quote=customerQuote(db,user.id,item,product.sale_cents,model);
+      requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: richiedi l’autorizzazione dell’Owner':'Prezzo sotto costo: richiedi l’autorizzazione dell’Owner',409);
+      db.prepare('INSERT INTO order_lines VALUES(?,?,?,?,?)').run(id,item,product.name,qty,quote.cents);
     }
     db.prepare("INSERT INTO order_events(order_id,actor,status) VALUES(?,?,'received')").run(id,user.id);
     audit(db,user.id,'order.created',{id});
@@ -237,10 +233,15 @@ route('POST','/api/sales','sales.write',({user,input})=>transaction(db,()=>{
   const item=string(input.item,100),quantity=integer(input.quantity,1,10000);
   const product=db.prepare('SELECT name,sale_cents FROM items WHERE id=?').get(item);
   requireAccess(product?.sale_cents!=null,'Prezzo di vendita non definito',409);
+  const customer=input.customer?string(input.customer,20):'';
+  requireAccess(!customer||db.prepare("SELECT u.id FROM users u LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=? AND u.role='client' AND COALESCE(a.state,'active')='active'").get(customer),
+    'Cliente non autorizzato',400);
+  const quote=customerQuote(db,customer,item,product.sale_cents,costs(db));
+  requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: autorizzazione Owner necessaria':'Prezzo sotto costo: autorizzazione Owner necessaria',409);
   const {id}=db.prepare("INSERT INTO cash_entries(kind,cents,description,item_id,quantity,actor) VALUES('sale',?,?,?,?,?) RETURNING id")
-    .get(product.sale_cents*quantity,product.name,item,quantity,user.id);
+    .get(quote.cents*quantity,product.name,item,quantity,user.id);
   move(db,user.id,item,-quantity,'Vendita diretta #'+id);
-  audit(db,user.id,'sale.created',{id});
+  audit(db,user.id,'sale.created',{id,customer:customer||null,unit_cents:quote.cents});
   return {id};
 }));
 route('POST','/api/cash-entries','cash.write',({user,input})=>transaction(db,()=>{
@@ -314,6 +315,7 @@ route('POST','/api/ticket-message',null,({user,permissions,input})=>transaction(
 }));
 route('GET','/api/audit','audit.read',()=>db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 200').all());
 
+registerEconomy({route,db,requireAccess,string,integer});
 registerProcurement({route,db,requireAccess,string,integer,roles,actions,ownerId:OWNER_DISCORD_ID});
 
 createServer(async (req,res)=>{

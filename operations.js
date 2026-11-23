@@ -1,3 +1,4 @@
+import { costDetails } from './economy-ui.js';
 import { categories,category,photo } from './products.js';
 
 export function operations(ctx) {
@@ -54,7 +55,9 @@ export function operations(ctx) {
     return {orders,runs,items,receipts,purchases,requests:requests.filter(r=>r.role==='pending'&&r.name),tickets,audit,entries};
   }
   async function dashboard() {
-    const {orders,runs,items,receipts,purchases,requests,tickets,audit,entries}=await summary();
+    const [{orders,runs,items,receipts,purchases,requests,tickets,audit,entries},economy]=await Promise.all([
+      summary(),allowed('owner')?api('economy-dashboard'):null,
+    ]);
     const critical=items.filter(i=>i.minimum>0&&i.stock<i.minimum);
     const openOrders=orders.filter(open);
     const tiles=[];
@@ -79,7 +82,13 @@ export function operations(ctx) {
     if(allowed('tickets.use')||allowed('tickets.manage'))content.push(panel('Ticket',recent(tickets.slice(0,4),t=>record(t.title,badge(t.closed?'Chiuso':'Aperto',t.closed?'neutral':'warn'),age(t.created_at)),'Nessun ticket.')));
     if(allowed('audit.read'))content.push(panel('Attività recenti',recent(audit.slice(0,5),r=>record(r.action,badge('#'+r.id),age(r.created_at)),'Nessuna attività registrata.')));
     return [title(me.user.role==='owner'?'Direzione — Falegnameria Vexmoor':'Panoramica', 'Rhodes · 1900  /  '+new Intl.DateTimeFormat('it-IT',{dateStyle:'full',timeZone:'Europe/Rome'}).format(new Date())),
-      box('quick-actions',...actions),metrics(...tiles),box('dashboard-grid',...content)];
+      box('quick-actions',...actions),metrics(...tiles),...(economy?[panel('Economia della bottega',metrics(
+      ['Valore materiali',money(economy.raw),'Valori standard disponibili'],
+      ['Costo standard scorte',money(economy.standard),economy.missingStock+' voci in scorta senza valore completo'],
+      ['Margine medio',economy.margin===null?'—':economy.margin.toLocaleString('it-IT',{maximumFractionDigits:2})+'%','Prezzi in bozza o pubblicati con costo completo'],
+      ['Margine sotto il 20%',economy.low,'Prodotti con costo completo'],
+      ['Costo incompleto',economy.incomplete,'Prodotti da valorizzare'],
+      ['Ricavo potenziale',money(economy.potential),'Scorte vendibili ai prezzi già pubblicati']))]:[]),box('dashboard-grid',...content)];
   }
   async function notifications() {
     const s=await summary();
@@ -185,7 +194,7 @@ export function operations(ctx) {
         if(seq!==request)return;
         const lacking=Object.entries(result.shortages);
         aside.replaceChildren(panel('Disponibilità',lacking.length?recent(lacking,([id,n])=>record(entries.get(id)?.name??id,badge('−'+n,'bad'),'Mancanti'),''):badge('Materiali sufficienti','good')),
-          panel('Costo standard',el('strong',money(cost.total)),el('p',cost.total===null?'Subtotale noto: '+money(cost.subtotal):'Valore dei materiali per i craft previsti.')),
+          panel('Costo standard',costDetails(el,cost,money)),
           panel('Sequenza di lavorazione',recent(result.steps,s=>record(entries.get(s.id)?.name??s.id,badge(s.output+' pz'),s.batches+' craft'),'')));
         if(!lacking.length&&allowed('production.write'))aside.append(button('Avvia e registra produzione',async()=>{
           if(!confirm('Confermi il consumo dei materiali e il carico dei prodotti finiti?'))return;
@@ -218,7 +227,7 @@ export function operations(ctx) {
       panel('Registro lavorazioni',history.length?table(['Numero','Prodotto','Craft','Pezzi','Data'],history.map(r=>['#'+r.id,r.recipe_id,r.batches,r.output,age(r.created_at)])):empty('Nessuna lavorazione registrata.'))];
   }
   async function orders() {
-    const [rows,catalog,staff]=await Promise.all([api('orders'),api('catalog'),permits(['orders.manage'],'staff')]);
+    const [rows,catalog,staff]=await Promise.all([api('orders'),permits(['orders.create'],'customer-catalog'),permits(['orders.manage'],'staff')]);
     const search=query('Cerca ordine, cliente o articolo');
     const filter=pick('status',[['','Tutti gli stati'],...Object.entries(orderLabels)]);filter.setAttribute('aria-label','Stato ordine');
     const mode=pick('mode',[['board','Bacheca'],['table','Registro']]);mode.setAttribute('aria-label','Vista ordini');
@@ -263,11 +272,11 @@ export function operations(ctx) {
       })));
     }
     function create(){
-      const sellable=catalog.filter(i=>i.sale_cents!==null);
+      const sellable=catalog;
       if(!sellable.length){modal('Nuovo ordine',empty('Il catalogo non contiene ancora articoli con un prezzo di vendita.'));return;}
       const lines=box('order-form-lines'),entries=[];
       function add(selected){
-        const product=pick('article',sellable.map(i=>[i.id,i.name+' · '+money(i.sale_cents)]));
+        const product=pick('article',sellable.map(i=>[i.id,i.name+' · '+money(i.cents)+(i.blocked?' · autorizzazione Owner necessaria':i.incomplete?' · costo incompleto':'')]));
         product.setAttribute('aria-label','Articolo');if(selected&&sellable.some(i=>i.id===selected))product.value=selected;
         const quantity=input('quantity','number');quantity.min=1;quantity.max=10000;quantity.value=1;quantity.setAttribute('aria-label','Quantità');
         const entry={product,quantity};entries.push(entry);
@@ -326,13 +335,33 @@ export function operations(ctx) {
     [...purchases,...entries.filter(r=>r.cents<0).map(r=>({...r,cents:-r.cents}))],
   ];
   async function sales(){
-    const [catalog,rows]=await Promise.all([api('catalog'),api('sales')]);
+    const [catalog,rows,clients]=await Promise.all([api('catalog'),api('sales'),api('sale-customers')]);
     const priced=catalog.filter(p=>p.sale_cents!==null);
-    const newSale=()=>modal('Vendita diretta',form([['Articolo',pick('item',priced.map(p=>[p.id,p.name+' · '+money(p.sale_cents)]))],
-      ['Pezzi',Object.assign(input('quantity','number'),{min:1,max:10000,value:1})]],'Registra vendita',async d=>{
-      if(!confirm('Confermi incasso e scarico dal magazzino?'))return;
-      await api('sales',{item:d.item,quantity:Number(d.quantity)});document.getElementById('modal').close();await show('sales');status('Vendita registrata.');
-    }));
+    function newSale(){
+      const customer=pick('customer',[['','Prezzo pieno'],...clients.map(c=>[c.id,c.name])]);
+      customer.required=false;
+      const article=pick('item',priced.map(p=>[p.id,p.name+' · '+money(p.sale_cents)]));
+      const feedback=el('p','');feedback.setAttribute('role','status');
+      let generation=0;
+      async function quote(){
+        const current=++generation;
+        try{
+          const q=await api('sale-quote',{item:article.value,customer:customer.value});
+          if(current===generation)feedback.textContent=money(q.cents)+' / pz'+(q.incomplete?' · costo incompleto':q.under?' · prezzo sotto costo':'')+
+            (q.blocked?' · autorizzazione Owner necessaria':'');
+        }catch(error){if(current===generation)feedback.textContent=error.message;}
+      }
+      article.onchange=customer.onchange=()=>void quote();
+      const entry=form([['Articolo',article],['Cliente',customer],['Pezzi',Object.assign(input('quantity','number'),{min:1,max:10000,value:1})]],
+        'Registra vendita',async d=>{
+          const quote=await api('sale-quote',{item:d.item,customer:d.customer});
+          if(quote.blocked)throw Error('Serve l’autorizzazione dell’Owner per questo prezzo.');
+          if(!confirm('Confermi '+money(quote.cents*Number(d.quantity))+' di incasso e lo scarico dal magazzino?'))return;
+          await api('sales',{item:d.item,quantity:Number(d.quantity),customer:d.customer});
+          document.getElementById('modal').close();await show('sales');status('Vendita registrata.');
+        });
+      modal('Vendita diretta',feedback,entry);void quote();
+    }
     return [title('Vendite dirette','Registro delle vendite al banco.',priced.length?button('＋ Nuova vendita',newSale):null),
       rows.length?table(['Data','Articolo','Quantità','Incasso'],rows.map(r=>[age(r.created_at),r.description,r.quantity,money(r.cents)]))
         :empty(priced.length?'Nessuna vendita registrata.':'Imposta i prezzi in Catalogo e prezzi prima di registrare una vendita.')];

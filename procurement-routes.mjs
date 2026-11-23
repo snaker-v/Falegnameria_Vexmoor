@@ -1,3 +1,4 @@
+import { costs } from './economy.mjs';
 import { audit, move, transaction, key } from './db.mjs';
 import { comparisons, ford, requirements } from './procurement-db.mjs';
 
@@ -30,7 +31,13 @@ export function registerProcurement({route,db,requireAccess:check,string,integer
   const outstanding=(line)=>line.quantity-line.received;
 
   route('GET','/api/procurement','purchasing.read',()=>{
-    const plan=requirements(db);
+    const plan=requirements(db), pricing=costs(db).pricing;
+    for(const row of plan.shortages){
+      const rate=pricing.get(row.id);
+      row.reference_source=db.prepare('SELECT supplier FROM material_sources WHERE item_id=?').get(row.id)?.supplier??null;
+      row.standard_cents=rate.cents;row.standard_source=rate.source;row.standard_date=rate.observed??db.prepare(
+        "SELECT created_at FROM price_history WHERE item_id=? AND kind='material' ORDER BY id DESC LIMIT 1").get(row.id)?.created_at??null;
+    }
     const orders=db.prepare(`SELECT p.*,s.name AS supplier_name,COALESCE(NULLIF(a.display_name,''),u.username) AS assignee_name
       FROM purchase_orders p JOIN suppliers s ON s.id=p.supplier_id JOIN users u ON u.id=p.assignee
       LEFT JOIN account_controls a ON a.user_id=u.id ORDER BY p.id DESC`).all();
@@ -208,16 +215,21 @@ function registerOwner({route,db,check,string,integer,roles,actions,ownerId,rows
     const article=input.id?itemId(input.id):key(name.normalize('NFC'));
     const category=optional(input.category,80),description=optional(input.description,900);
     const reference=input.reference_cents===null?null:amount(input.reference_cents);
-    const sale=kind==='finished'&&input.sale_cents!==null?amount(input.sale_cents):null;
+
     const minimum=quantity(input.minimum);
     const supplierId=input.supplier_id===null?null:supplier(input.supplier_id).id;
     const existing=db.prepare('SELECT * FROM items WHERE id=?').get(article);
     check(input.id?existing:!existing,input.id?'Articolo non trovato':'Esiste già un articolo con questo identificativo',input.id?404:409);
     const before=existing??null;
+    const sale=existing?.sale_cents??null;
+    if(reference!== (existing?.reference_cents??null))db.prepare(
+      "INSERT INTO price_history(item_id,kind,old_cents,new_cents,actor) SELECT id,'material',reference_cents,?,? FROM items WHERE id=?"
+    ).run(reference,user.id,article);
     if(input.id)db.prepare('UPDATE items SET name=?,kind=?,category=?,description=?,reference_cents=?,sale_cents=?,minimum=?,supplier_id=? WHERE id=?')
       .run(name,kind,category,description,reference,sale,minimum,supplierId,article);
     else db.prepare('INSERT INTO items(id,name,kind,category,description,reference_cents,sale_cents,minimum,supplier_id) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(article,name,kind,category,description,reference,sale,minimum,supplierId);
+    if(!existing&&reference!==null)db.prepare("INSERT INTO price_history(item_id,kind,old_cents,new_cents,actor) VALUES(?,'material',NULL,?,?)").run(article,reference,user.id);
     audit(db,user.id,'stock.item',{item:article,before,after:{name,kind,category,description,reference,sale,minimum,supplierId}});
     return {id:article};
   }));

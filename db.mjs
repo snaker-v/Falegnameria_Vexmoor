@@ -1,3 +1,4 @@
+import { costs, migrateEconomy } from './economy.mjs';
 import { migrateProcurement } from './procurement-db.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
@@ -107,6 +108,7 @@ export function open(path) {
     `);
   });
   migrateProcurement(db);
+  transaction(db,()=>migrateEconomy(db));
   return db;
 }
 
@@ -166,33 +168,6 @@ export function craft(db, actor, id, batches, intermediate, orderId=null) {
   });
 }
 
-export function estimate(db, id, demand) {
-  const totals = new Map();
-  const remainder = new Map();
-  const recipe = db.prepare('SELECT yield_qty FROM recipes WHERE item_id=?');
-  const ingredients = db.prepare('SELECT item_id,qty FROM ingredients WHERE recipe_id=?');
-  function consume(item, quantity) {
-    const entry = recipe.get(item);
-    if (!entry) {
-      totals.set(item,(totals.get(item)??0)+quantity);
-      return;
-    }
-    const available = remainder.get(item)??0;
-    if (available>=quantity) {
-      remainder.set(item,available-quantity);
-      return;
-    }
-    const batches = Math.ceil((quantity-available)/entry.yield_qty);
-    remainder.set(item,available+batches*entry.yield_qty-quantity);
-    for (const component of ingredients.all(item)) consume(component.item_id,component.qty*batches);
-  }
-  consume(id,demand);
-  const get = db.prepare('SELECT name,reference_cents FROM items WHERE id=?');
-  const materials = [...totals].map(([key,quantity])=>{
-    const {name,reference_cents:cents}=get.get(key);
-    return {name,quantity,cents,total:cents===null?null:quantity*cents};
-  });
-  const unknown = materials.some(row=>row.total===null);
-  const subtotal = materials.reduce((sum,row)=>sum+(row.total??0),0);
-  return {materials,subtotal,total:unknown?null:subtotal};
+export function estimate(db,id,demand) {
+  return costs(db).estimate(id,demand);
 }

@@ -38,3 +38,11 @@ I valori delle scorte usano i prezzi di riferimento disponibili. Il margine lord
 L'aggiornamento aggiunge Acquisti in Commercio, gestione account e permessi in Sistema e rettifiche/anagrafica Owner nel Magazzino. SQLite migra automaticamente lo schema da v2 a v3 in una transazione. Verificare il volume persistente e conservare un backup consistente prima del deploy sul servizio esistente.
 
 Il fabbisogno comprende ordini accettati, in preparazione o in produzione, soglie, craft programmati e aggiunte manuali. Gli ordini già pronti hanno già scaricato la riserva dal magazzino. Le consegne attese riducono la lista residua, ma solo la registrazione della ricezione aggiorna la scorta. Per evitare registrazioni duplicate riutilizzare il riferimento originale della ricezione o del pagamento in caso di tentativo ripetuto. Il confronto applica sconti documentati e verifica la disponibilità solo se registrata. Se i costi di trasporto non sono confrontabili fra tutte le offerte, la graduatoria usa il solo prezzo dei materiali.
+
+## Aggiornamento 0.4 — Costi e listini
+
+L'aggiornamento migra SQLite da v3 a v4 e scrive i riferimenti ufficiali e 36 bozze di vendita. Le quantità, i prezzi di vendita già pubblicati e i prezzi storici degli ordini restano invariati. L'Owner pubblica le bozze da **Commercio → Catalogo e prezzi** e gestisce da lì riferimenti, cronologia e listini clienti.
+
+Il costo standard usa il minimo tra il riferimento, listini con articolo esattamente riconosciuto e offerte registrate eleggibili, al netto degli sconti convenzionati. Le forniture gratuite Ford ricevute sono registrate a costo monetario zero nelle ricezioni e non fanno scendere il riferimento teorico a zero. La media documentata delle ricezioni è un indicatore d'acquisto, non una valorizzazione per lotti delle scorte né un costo storico del venduto.
+
+La distinta teorica imputa solo la quantità di intermedi utilizzata. Il preventivo a craft interi espone il fabbisogno a pezzi interi e i residui. Il prezzo di una nuova vendita viene calcolato lato server. Gli sconti sono assegnati dall'Owner per cliente. Una vendita scontata con costo mancante o sotto costo richiede un'eccezione esplicita per cliente e prodotto.

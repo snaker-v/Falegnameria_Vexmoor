@@ -1,3 +1,4 @@
+import { economics } from './economy-ui.js';
 import { extension } from './procurement-ui.js';
 import { operations } from './operations.js';
 const el = (tag,text,props={}) => Object.assign(document.createElement(tag),text===null?props:{textContent:text,...props});
@@ -63,15 +64,6 @@ function table(headers,rows) {
 }
 const names = rows => rows.map(r=>[r.id,r.name]);
 const heading = text => el('h2',text);
-async function catalog() {
-  const list=await api('catalog');
-  const children=[heading('Catalogo della bottega')];
-  if (allowed('catalog.write')) children.push(form([['Articolo',pick('id',names(list))],['Prezzo in centesimi RP',input('price','number',false)]],'Salva prezzo',async d=>{
-    await api('catalog',{id:d.id,cents:d.price===''?null:Number(d.price)});
-    await show('catalog');status('Prezzo aggiornato.');
-  }));
-  return [...children,table(['Articolo','Prezzo unitario'],list.map(r=>[r.name,money(r.sale_cents)]))];
-}
 async function market() {
   const list=await api('market');
   const children=[heading('Listini concorrenti')];
@@ -225,8 +217,9 @@ try {
     navigation=all.filter(x=>x[3]);
     const ctx={el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me,roles:roleLabels};
     const extra=extension(ctx);
+    const economy=economics(ctx);
     ops=operations({...ctx,inventoryTools:extra.inventoryTools});
-    const registry={...ops,activity:auditLog,tickets,suppliers,catalog,market,purchases:extra.purchases,owner:()=>extra.owner('users'),permissions:()=>extra.owner('permissions'),settings,access,audit:auditLog};
+    const registry={...ops,activity:auditLog,tickets,suppliers,catalog:economy.catalog,market,purchases:extra.purchases,owner:()=>extra.owner('users'),permissions:()=>extra.owner('permissions'),settings,access,audit:auditLog};
     pages=Object.fromEntries(navigation.map(([,id])=>[id,registry[id]]));
     const grouped=new Map();
     for(const [group,id,label] of navigation){
