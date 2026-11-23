@@ -91,6 +91,20 @@ export function open(path) {
     supplier.run('Fabbro di Saint Denis','Contatto potenziale per componenti. Accordi da concordare.');
     db.exec('PRAGMA user_version=1');
   });
+  transaction(db,()=>{
+    if(db.prepare('PRAGMA user_version').get().user_version!==1)return;
+    db.exec(`
+      ALTER TABLE items ADD COLUMN minimum INTEGER NOT NULL DEFAULT 0 CHECK(minimum>=0);
+      ALTER TABLE orders ADD COLUMN assignee TEXT REFERENCES users(id);
+      ALTER TABLE production ADD COLUMN order_id INTEGER REFERENCES orders(id);
+      CREATE TABLE order_events(id INTEGER PRIMARY KEY,order_id INTEGER NOT NULL REFERENCES orders(id),actor TEXT NOT NULL,
+        status TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE cash_entries(id INTEGER PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('sale','expense','refund','adjustment')),
+        cents INTEGER NOT NULL, description TEXT NOT NULL, item_id TEXT REFERENCES items(id), quantity INTEGER,
+        actor TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      PRAGMA user_version=2;
+    `);
+  });
   return db;
 }
 
@@ -130,12 +144,14 @@ export function plan(db, recipeId, batches, intermediate) {
   return {steps,shortages:Object.fromEntries(shortages)};
 }
 
-export function craft(db, actor, id, batches, intermediate) {
+export function craft(db, actor, id, batches, intermediate, orderId=null) {
   return transaction(db,()=>{
+    if(orderId!==null && !db.prepare(`SELECT 1 FROM orders o JOIN order_lines l ON l.order_id=o.id
+      WHERE o.id=? AND l.item_id=? AND o.status IN ('accepted','preparing','producing')`).get(orderId,id)) return null;
     const result = plan(db,id,batches,intermediate);
     if (Object.keys(result.shortages).length) throw new Error('Scorte insufficienti per la produzione');
-    for (const step of result.steps) {
-      const entry = db.prepare('INSERT INTO production(recipe_id,batches,output,actor) VALUES(?,?,?,?) RETURNING id').get(step.id,step.batches,step.output,actor);
+    for (const [index,step] of result.steps.entries()) {
+      const entry = db.prepare('INSERT INTO production(recipe_id,batches,output,actor,order_id) VALUES(?,?,?,?,?) RETURNING id').get(step.id,step.batches,step.output,actor,index===result.steps.length-1?orderId:null);
       for (const ingredient of step.ingredients) move(db,actor,ingredient.id,-ingredient.qty,'Produzione #'+entry.id);
       move(db,actor,step.id,step.output,'Produzione #'+entry.id);
     }

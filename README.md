@@ -22,3 +22,13 @@ La Fonderia Ford, commit `318140e638b04039ed60566e6214239eee6dafd2`, è il rifer
 Disponibili vetrina iniziale, richieste di accesso e ruoli, permessi per utente e ruolo, registri iniziali di magazzino e produzione, lavorazioni multilivello, listini concorrenti con audit delle correzioni, costo standard, ordini multiarticolo, riserva di magazzino, consegna, verifica incassi, forniture con costo monetario registrato e ticket con storico dei messaggi.
 
 Da completare secondo capitolato restano dashboard definitiva, catalogo illustrato per articolo, identità grafica completa dei cinque ambienti, magazzini multipli e inventario avanzato, assegnazioni e collegamenti di produzione agli ordini, gestione avanzata dei fornitori e delle notifiche dei ticket, personale, contabilità estesa e costo effettivo, documenti ed esportazioni. Collaudare accesso Discord reale e deploy Railway prima dell'utilizzo.
+
+## Aggiornamento 0.2 — Vetrina e gestionale
+
+La vetrina pubblica e l'area riservata usano rispettivamente `/` e `/gestionale`.
+Lo schema SQLite passa automaticamente dalla versione 1 alla 2 in una transazione.
+Prima del deploy, verificare che `DATA_DIR` punti al database corrente e creare un backup consistente sul volume Railway.
+Conservare le variabili di ambiente e il redirect OAuth configurati.
+
+La migrazione aggiunge soglie materiali, assegnazioni e storico ordini, lavorazioni collegate e movimenti contabili. Gli ordini preesistenti conservano lo stato corrente. Lo storico cronologico copre gli eventi registrati dopo l'aggiornamento.
+I valori delle scorte usano i prezzi di riferimento disponibili. Il margine lordo resta indeterminato finché manca una rilevazione storica del costo del venduto.
