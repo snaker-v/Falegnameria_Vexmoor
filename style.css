@@ -15,3 +15,7 @@ dialog{padding:0;background:var(--surface);color:var(--ink);border:1px solid var
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 .compact th,.compact td{padding-block:.34rem}
 #view[data-page=settings]>p{margin-bottom:.8rem}
+.procurement-bar{display:grid;grid-template-columns:minmax(75px,1fr) minmax(35px,2fr) auto;gap:.6rem;align-items:center;margin:.6rem 0}
+.permission-editor{display:grid;justify-items:start;margin-top:.7rem}
+.permission-editor>.table{width:100%}
+.permission-editor input{accent-color:var(--accent)}

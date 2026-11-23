@@ -1,3 +1,4 @@
+import { registerProcurement, purchasePermissions } from './procurement-routes.mjs';
 import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
@@ -24,11 +25,14 @@ const defaults = {
   director:['inventory.read','inventory.write','production.plan','production.write','orders.manage','sales.write','tickets.manage','suppliers.read','suppliers.write','market.read','market.write','catalog.write','cash.read','cash.verify','cash.write','audit.read'],
   accountant:['inventory.read','market.read','cash.read','cash.verify','cash.write','suppliers.read'],
 };
+defaults.manager.push(...purchasePermissions.filter(p=>!p.endsWith('.pay')));
+defaults.director.push(...purchasePermissions);
+defaults.accountant.push('purchasing.read','purchasing.pay','purchasing.export');
 const actions = [...new Set(Object.values(defaults).flat())];
 const files = new Map([['/',['index.html','text/html']],['/app.js',['app.js','text/javascript']],['/style.css',['style.css','text/css']],['/bottega.webp',['bottega.webp','image/webp']]]);
 for (const page of ['/catalogo','/bottega','/preventivo','/assistenza']) files.set(page,files.get('/'));
 files.set('/gestionale',['workspace.html','text/html']);
-for (const name of ['storefront','products','operations']) files.set('/'+name+'.js',[name+'.js','text/javascript']);
+for (const name of ['storefront','products','operations','procurement-ui']) files.set('/'+name+'.js',[name+'.js','text/javascript']);
 for (const name of ['casse','attrezzi','legname','equipaggiamento','strutture','accessori']) files.set('/'+name+'.webp',[name+'.webp','image/webp']);
 class HttpError extends Error { constructor(status,message){ super(message); this.status=status; } }
 const requireAccess = (condition,message='Accesso negato',status=403) => { if (!condition) throw new HttpError(status,message); };
@@ -65,7 +69,8 @@ const route = (method,url,permission,handler) => routes.set(method+' '+url,{perm
 
 route('GET','/api/health',null,()=>({ok:true}));
 route('GET','/api/me',null,({user,permissions})=>({user,permissions,roles,actions}));
-route('GET','/api/catalog',null,()=>db.prepare('SELECT i.id,i.name,i.sale_cents,(i.stock>0) AS available,r.yield_qty FROM recipes r JOIN items i ON i.id=r.item_id ORDER BY i.name').all());
+route('GET','/api/catalog',null,()=>db.prepare(`SELECT i.id,i.name,i.description,i.category,i.sale_cents,(i.stock>0) AS available,r.yield_qty
+  FROM items i LEFT JOIN recipes r ON i.id=r.item_id WHERE r.item_id IS NOT NULL OR i.kind='finished' ORDER BY i.name`).all());
 route('POST','/api/access',null,({user,input})=>{
   requireAccess(user?.role==='pending','Richiesta riservata agli account in attesa');
   db.prepare('INSERT INTO requests(user_id,name,note) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,note=excluded.note')
@@ -96,7 +101,7 @@ route('POST','/api/permissions','owner',({user,input})=>{
   });
   return {ok:true};
 });
-route('GET','/api/inventory','inventory.read',()=>db.prepare('SELECT * FROM items ORDER BY name').all());
+route('GET','/api/inventory','inventory.read',()=>db.prepare('SELECT i.*,(r.item_id IS NOT NULL) AS craft FROM items i LEFT JOIN recipes r ON r.item_id=i.id ORDER BY i.name').all());
 route('POST','/api/inventory','inventory.write',({user,input})=>{
   const id=string(input.id,100);
   const reason=string(input.reason,200);
@@ -150,7 +155,7 @@ route('POST','/api/catalog','catalog.write',({user,input})=>{
   const id=string(input.id,100);
   const cents=input.cents===null?null:integer(input.cents,0,100000000);
   transaction(db,()=>{
-    requireAccess(db.prepare('UPDATE items SET sale_cents=? WHERE id=? AND id IN (SELECT item_id FROM recipes)').run(cents,id).changes===1,'Articolo non trovato',404);
+    requireAccess(db.prepare("UPDATE items SET sale_cents=? WHERE id=? AND (kind='finished' OR id IN (SELECT item_id FROM recipes))").run(cents,id).changes===1,'Articolo non trovato',404);
     audit(db,user.id,'catalog',{id,cents});
   });
   return {ok:true};
@@ -180,7 +185,7 @@ route('POST','/api/orders','orders.create',({user,input})=>{
       requireAccess(!seen.has(item),'Un articolo compare più volte nell’ordine',400);
       seen.add(item);
       const qty=integer(line.qty,1,10000);
-      const product=db.prepare('SELECT name,sale_cents FROM items JOIN recipes ON recipes.item_id=items.id WHERE id=?').get(item);
+      const product=db.prepare("SELECT name,sale_cents FROM items WHERE id=? AND (kind='finished' OR id IN (SELECT item_id FROM recipes))").get(item);
       requireAccess(product?.sale_cents!=null,'Articolo senza prezzo di vendita',409);
       db.prepare('INSERT INTO order_lines VALUES(?,?,?,?,?)').run(id,item,product.name,qty,product.sale_cents);
     }
@@ -212,7 +217,9 @@ route('POST','/api/order-status','orders.manage',({user,input})=>transaction(db,
   audit(db,user.id,'order.status',{id,previous:order.status,next});
   return {ok:true};
 }));
-const listStaff=()=>db.prepare("SELECT id,username,role FROM users WHERE role IN ('worker','manager','director','accountant') OR id=? ORDER BY username").all(OWNER_DISCORD_ID??'');
+const listStaff=()=>db.prepare(`SELECT u.id,COALESCE(NULLIF(a.display_name,''),u.username) AS username,u.role
+  FROM users u LEFT JOIN account_controls a ON a.user_id=u.id
+  WHERE (u.role IN ('worker','manager','director','accountant') AND COALESCE(a.state,'active')='active') OR u.id=? ORDER BY username`).all(OWNER_DISCORD_ID??'');
 route('GET','/api/staff','orders.manage',()=>listStaff());
 route('POST','/api/order-assignee','orders.manage',({user,input})=>transaction(db,()=>{
   const id=integer(input.id,1,Number.MAX_SAFE_INTEGER);
@@ -307,6 +314,8 @@ route('POST','/api/ticket-message',null,({user,permissions,input})=>transaction(
 }));
 route('GET','/api/audit','audit.read',()=>db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 200').all());
 
+registerProcurement({route,db,requireAccess,string,integer,roles,actions,ownerId:OWNER_DISCORD_ID});
+
 createServer(async (req,res)=>{
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
@@ -353,8 +362,11 @@ createServer(async (req,res)=>{
       cookie(res,'',0);
       return answer(res,200,{ok:true});
     }
-    const user=session?.user_id?db.prepare('SELECT * FROM users WHERE id=?').get(session.user_id):null;
+    const user=session?.user_id?db.prepare(`SELECT u.*,a.display_name,COALESCE(a.state,'active') AS account_state
+      FROM users u LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=?`).get(session.user_id):null;
     if (user && user.id===OWNER_DISCORD_ID) user.role='owner';
+    else if(user && user.account_state!=='active')user.role=user.account_state;
+    if(user?.display_name){user.discord_username=user.username;user.username=user.display_name;}
     const permissionSet=new Set(user?.role==='owner'?['owner',...actions]:defaults[user?.role]||[]);
     if (user && roles.includes(user.role)) {
       const overrides=db.prepare("SELECT permission,enabled FROM permissions WHERE (scope='role' AND subject=?) OR (scope='user' AND subject=?) ORDER BY scope").all(user.role,user.id);

@@ -10,7 +10,7 @@ function heading(title,description) {
 }
 function card(item) {
   const id=category(item.name);
-  const detail=section('product-copy',make('p',categories[id][0],{className:'eyebrow'}),make('h2',item.name),make('p',categories[id][1]));
+  const detail=section('product-copy',make('p',item.category||categories[id][0],{className:'eyebrow'}),make('h2',item.name),make('p',item.description||categories[id][1]));
   const footer=section('product-foot',make('strong',euro(item.sale_cents)),make('small',item.available?'Disponibile in bottega':'Su lavorazione'));
   const order=item.sale_cents!==null;
   const action=order&&me.permissions.includes('orders.create')?'/gestionale#orders?item='+encodeURIComponent(item.id)

@@ -1,3 +1,4 @@
+import { migrateProcurement } from './procurement-db.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 
@@ -105,6 +106,7 @@ export function open(path) {
       PRAGMA user_version=2;
     `);
   });
+  migrateProcurement(db);
   return db;
 }
 
@@ -115,7 +117,7 @@ export function audit(db, actor, action, details) {
 export function move(db, actor, item, delta, reason) {
   const state = db.prepare('UPDATE items SET stock=stock+? WHERE id=? AND stock+?>=0 RETURNING stock').get(delta,item,delta);
   if (!state) throw new Error('Articolo sconosciuto o scorte insufficienti');
-  db.prepare('INSERT INTO moves(item_id,delta,actor,reason) VALUES(?,?,?,?)').run(item,delta,actor,reason);
+  db.prepare('INSERT INTO moves(item_id,delta,actor,reason,previous_stock,new_stock) VALUES(?,?,?,?,?,?)').run(item,delta,actor,reason,state.stock-delta,state.stock);
 }
 
 export function plan(db, recipeId, batches, intermediate) {
@@ -154,6 +156,10 @@ export function craft(db, actor, id, batches, intermediate, orderId=null) {
       const entry = db.prepare('INSERT INTO production(recipe_id,batches,output,actor,order_id) VALUES(?,?,?,?,?) RETURNING id').get(step.id,step.batches,step.output,actor,index===result.steps.length-1?orderId:null);
       for (const ingredient of step.ingredients) move(db,actor,ingredient.id,-ingredient.qty,'Produzione #'+entry.id);
       move(db,actor,step.id,step.output,'Produzione #'+entry.id);
+    }
+    if(orderId===null){
+      db.prepare('DELETE FROM production_schedule WHERE item_id=? AND batches<=?').run(id,batches);
+      db.prepare('UPDATE production_schedule SET batches=batches-? WHERE item_id=?').run(batches,id);
     }
     audit(db,actor,'production',result.steps);
     return result;

@@ -34,7 +34,8 @@ test('importazione idempotente, lavorazione multilivello e rollback',()=>{
 test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'vexmoor-http-'));
   const owner='111111111111111111',client='222222222222222222',other='333333333333333333';
-  const db=open(join(dir,'vexmoor.sqlite'));
+  const file=join(dir,'vexmoor.sqlite');
+  const db=open(file);
   const makeSession=(id,role)=>{
     const token=randomBytes(32).toString('base64url');
     db.prepare('INSERT INTO users VALUES(?,?,?)').run(id,role,role);
@@ -105,6 +106,95 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal((await request('/api/ticket-message',stranger,{id:ticketId,message:'test'})).status,404);
     assert.equal((await request('/api/ticket-message',admin,{id:ticketId,close:true})).status,200);
     assert.equal((await request('/api/ticket-message',customer,{id:ticketId,message:'test'})).status,409);
+
+    const get=async(path,cookie=admin)=>{const res=await request('/api/'+path,cookie);assert.equal(res.status,200,path);return res.json();};
+    const post=async(path,input,code=200,cookie=admin)=>{const res=await request('/api/'+path,cookie,input);const payload=await res.json();assert.equal(res.status,code,JSON.stringify(payload));return payload;};
+    const stock=item=>db.prepare('SELECT stock FROM items WHERE id=?').get(item).stock;
+    const otherEdit={id:other,display_name:'Capobottega',notes:'Nota privata',state:'active',role:'pending'};
+    await post('owner-user',otherEdit);
+    assert.equal((await get('me',stranger)).user.username,'Capobottega');
+    assert.equal((await get('me',stranger)).user.discord_username,'client');
+    await post('access',{name:'Capobottega RP',note:'Richiesta'},200,stranger);
+    await post('owner-user',{...otherEdit,role:'manager'});
+    assert.equal((await get('me',stranger)).user.role,'manager');
+    await post('owner-permissions',{scope:'user',subject:other,rules:{'purchasing.read':false}});
+    assert.equal((await request('/api/procurement',stranger)).status,403);
+    await post('owner-user',{...otherEdit,role:'manager',state:'suspended'});
+    assert.equal((await get('me',stranger)).user,null);
+    await post('owner-user',{...otherEdit,id:owner,role:'manager'},403);
+    const added=await post('stock-item',{name:'Tavola di noce',kind:'material',category:'Legname speciale',description:'Materiale di prova',
+      reference_cents:25,sale_cents:null,supplier_id:1,minimum:0});
+    await post('stock-batch',{reason:'Carico',lines:[{item:added.id,delta:5},{item:'legno',delta:10}]});
+    await post('stock-batch',{reason:'Scarico',lines:[{item:added.id,delta:-2}]});
+    await post('stock-batch',{reason:'Errore multiplo',lines:[{item:added.id,delta:1},{item:'ferro',delta:-50}]},409);
+    assert.equal(stock(added.id),3);
+    await post('stock-batch',{reason:'Rettifica multipla',lines:[{item:added.id,expected:3,stock:0},{item:'legno',expected:50,stock:40}]});
+    assert.equal(stock(added.id),0);
+    assert.equal(stock('legno'),40);
+    const reopened=open(file);
+    assert.equal(reopened.prepare('SELECT description FROM items WHERE id=?').get(added.id).description,'Materiale di prova');
+    assert.equal(reopened.prepare('SELECT state FROM account_controls WHERE user_id=?').get(other).state,'suspended');
+    reopened.close();
+
+    await post('stock-minimum',{id:'pala',minimum:1});
+    const active=[];
+    for(let i=0;i<2;i++){
+      const order=await post('orders',{note:'Asce',lines:[{id:'ascia',qty:8}]},200,customer);
+      active.push(order.id);
+      await post('order-status',{id:order.id,status:'accepted'});
+    }
+    await post('procurement-need',{item:'chiodo',quantity:100});
+    const initial=await get('procurement');
+    assert.equal(initial.plan.shortages.find(i=>i.id==='ferro').needed,8);
+    assert.equal(initial.plan.shortages.find(i=>i.id==='acciaio').needed,4);
+    assert.equal(initial.plan.planned.find(i=>i.id==='ascia').batches,2);
+    assert.equal(initial.plan.planned.find(i=>i.id==='assi di legno').batches,1);
+    const nails=initial.comparison.find(i=>i.id==='chiodo');
+    assert.equal(nails.best,1500);
+    assert.deepEqual(nails.winners.map(o=>o.city).sort(),['Blackwater','Saint Denis']);
+    assert(nails.winners.every(o=>o.available===null));
+    const shop=initial.suppliers.find(s=>s.name==='Fabbro di Saint Denis').id;
+    await post('procurement-offer',{item:'chiodo',supplier:shop,unit_cents:null,discount_bps:0,transport_cents:10,available:0});
+    const verified=(await get('procurement')).comparison.find(r=>r.id==='chiodo');
+    assert.deepEqual(verified.winners.map(o=>o.city),['Blackwater']);
+    await post('procurement-schedule',{item:'assi di legno',batches:1});
+    const scheduled=(await get('procurement')).plan;
+    assert.equal(scheduled.scheduled.find(r=>r.id==='assi di legno').quantity,4);
+    assert(!scheduled.planned.some(r=>r.id==='assi di legno'));
+    await post('procurement-schedule',{item:'assi di legno',batches:0});
+    const fordId=initial.suppliers.find(s=>s.name==='Miniere Ford').id;
+    const supply=await post('procurement-order',{supplier:fordId,lines:[{item:'ferro',quantity:8,unit_cents:null}]});
+    const receive={id:supply.id,request:'ford-ricezione',lines:[{item:'ferro',quantity:8}]};
+    await post('procurement-receive',receive,409);
+    await post('procurement-state',{id:supply.id,state:'requested'});
+    await post('procurement-state',{id:supply.id,state:'confirmed'});
+    assert.equal(stock('ferro'),0);
+    assert.equal((await get('procurement')).plan.shortages.find(i=>i.id==='ferro').inbound,8);
+    await post('procurement-receive',receive);
+    assert.equal((await post('procurement-receive',receive)).duplicate,true);
+    await post('procurement-receive',{...receive,lines:[{item:'ferro',quantity:7}]},409);
+    assert.equal(stock('ferro'),8);
+
+    const supplierId=initial.suppliers.find(s=>s.name==='Fabbro di Saint Denis').id;
+    const purchase=await post('procurement-order',{supplier:supplierId,lines:[{item:'acciaio',quantity:4,unit_cents:50}]});
+    assert.equal(db.prepare('SELECT count(*) n FROM cash_entries WHERE purchase_order_id=?').get(purchase.id).n,0);
+    for(const state of ['queued','ordered'])await post('procurement-state',{id:purchase.id,state});
+    for(const suffix of ['a','b'])await post('procurement-receive',{id:purchase.id,request:suffix,lines:[{item:'acciaio',quantity:2}]});
+    assert.equal(stock('acciaio'),4);
+    await post('procurement-payment',{id:purchase.id,request:'pagamento',cents:100});
+    assert.equal((await post('procurement-payment',{id:purchase.id,request:'pagamento',cents:100})).duplicate,true);
+    await post('procurement-payment',{id:purchase.id,request:'rimborso',cents:25,refund:true});
+    assert.deepEqual((await get('cash-entries')).filter(r=>r.purchase_order_id===purchase.id).map(r=>r.cents),[25,-100]);
+    const result=await post('production',{id:'ascia',batches:2,intermediate:true,orderId:active[0]});
+    assert.equal(result.steps.at(-1).output,16);
+    assert.equal(stock('ferro'),0);
+    assert.equal(stock('ascia'),16);
+    assert.equal(db.prepare('SELECT order_id FROM production WHERE recipe_id=?').get('ascia').order_id,active[0]);
+    const history=await post('item-moves',{item:added.id});
+    assert.deepEqual(history.map(r=>[r.previous_stock,r.new_stock]),[[3,0],[5,3],[0,5]]);
+    const log=await get('audit');
+    for(const action of ['account.updated','permissions.matrix','stock.item','stock.batch','purchase.received','purchase.payment','production'])
+      assert(log.some(r=>r.action===action),action);
   } finally {
     child.kill();await once(child,'exit');db.close();rmSync(dir,{recursive:true,force:true});
   }

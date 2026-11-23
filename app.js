@@ -1,3 +1,4 @@
+import { extension } from './procurement-ui.js';
 import { operations } from './operations.js';
 const el = (tag,text,props={}) => Object.assign(document.createElement(tag),text===null?props:{textContent:text,...props});
 const get = id => document.getElementById(id);
@@ -7,7 +8,7 @@ const status = message => {
   notice.textContent=message;
 };
 const money = cents => cents==null?'Da definire':(cents/100).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
-const roleLabels = {owner:'Owner',director:'Direttore',manager:'Responsabile',worker:'Dipendente',accountant:'Contabile',client:'Cliente',pending:'In attesa',rejected:'Rifiutato'};
+const roleLabels = {owner:'Owner',director:'Direttore',manager:'Responsabile',worker:'Dipendente',accountant:'Contabile',client:'Cliente',pending:'In attesa',rejected:'Rifiutato',revoked:'Whitelist revocata',suspended:'Sospeso',disabled:'Disattivato'};
 let me;
 let revision=0;
 const allowed = permission => me.permissions.includes(permission);
@@ -35,6 +36,7 @@ function form(fields,label,submit) {
   const root=el('form',null);
   for (const [title,control] of fields) {
     const label=el('label',title);
+    if(!control.hasAttribute('aria-label'))control.setAttribute('aria-label',title);
     label.append(control);
     root.append(label);
   }
@@ -79,25 +81,8 @@ async function market() {
   return [...children,table(['Città','Attività','Articolo','Prezzo','Rilevazione','Nota'],list.map(r=>[r.city,r.business,r.name,money(r.cents),r.observed,r.note]))];
 }
 async function access() {
-  if (me.user.role==='rejected') return [heading('Richiesta respinta')];
+  if (me.user.role!=='pending') return [heading(roleLabels[me.user.role]),el('p','Contatta il titolare per informazioni sul tuo accesso.')];
   return [heading('Richiedi accesso'),form([['Nome RP',input('name')],['Motivazione',input('note')]],'Invia richiesta',async d=>{await api('access',d);status('Richiesta registrata.');})];
-}
-async function owner(mode) {
-  const [users,overrides]=await Promise.all([api('access'),api('permissions')]);
-  const subjects=users.filter(r=>r.id!==me.user.id);
-  const options=[...me.roles.map(r=>['role:'+r,roleLabels[r]]),...subjects.map(u=>['user:'+u.id,u.username+' · '+u.id])];
-  const permissions=form([['Destinatario',pick('subject',options)],['Permesso',pick('permission',me.actions.map(p=>[p,p]))],
-    ['Regola',pick('value',[['true','Consenti'],['false','Nega'],['null','Eredita']])]],'Salva permesso',async d=>{
-    const [scope,subject]=d.subject.split(':');await api('permissions',{scope,subject,permission:d.permission,enabled:JSON.parse(d.value)});
-    await show('permissions');status('Permesso aggiornato.');
-  });
-  if(mode==='permissions')return [heading('Ruoli e permessi'),permissions,table(['Tipo','Destinatario','Permesso','Regola'],overrides.map(r=>[r.scope,r.subject,r.permission,r.enabled?'Consenti':'Nega']))];
-  return [heading('Gestione utenti'),
-    ...(subjects.length?[form([['Utente',pick('id',subjects.map(r=>[r.id,r.username]))],['Ruolo',pick('role',[...me.roles,'pending','rejected'].map(r=>[r,roleLabels[r]]))]],'Assegna ruolo',async d=>{
-      await api('role',d);await show('owner');status('Ruolo aggiornato.');
-    })]:[]),
-    table(['Utente Discord','Ruolo','Nome RP','Richiesta'],users.map(r=>[r.username,r.id===me.user.id?'Owner':roleLabels[r.role],r.name,r.note])),
-  ];
 }
 async function auditLog() {
   const rows=await api('audit');
@@ -228,18 +213,20 @@ try {
   me=await api('me');
   if(!me.user){location.replace('/auth/discord');}
   else {
-    const pending=['pending','rejected'].includes(me.user.role);
+    const pending=['pending','rejected','revoked','suspended','disabled'].includes(me.user.role);
     const all=[
       ['Panoramica','dashboard','Dashboard',!pending],['Panoramica','notifications','Notifiche',!pending],['Panoramica','activity','Attività recenti',allowed('audit.read')],
       ['Operazioni','orders','Ordini',allowed('orders.create')||allowed('orders.manage')],['Operazioni','production','Produzione',allowed('production.plan')],['Operazioni','stock','Magazzino',allowed('inventory.read')],
-      ['Operazioni','sales','Vendite dirette',allowed('sales.write')],['Commercio','customers','Clienti',allowed('orders.manage')],['Commercio','catalog','Catalogo e prezzi',allowed('catalog.write')],['Commercio','suppliers','Fornitori',allowed('suppliers.read')],['Commercio','market','Analisi concorrenza',allowed('market.read')],
+      ['Operazioni','sales','Vendite dirette',allowed('sales.write')],['Commercio','customers','Clienti',allowed('orders.manage')],['Commercio','catalog','Catalogo e prezzi',allowed('catalog.write')],['Commercio','suppliers','Fornitori',allowed('suppliers.read')],['Commercio','purchases','Acquisti',allowed('purchasing.read')],['Commercio','market','Analisi concorrenza',allowed('market.read')],
       ['Amministrazione','cash','Contabilità',allowed('cash.read')],['Amministrazione','staff','Personale',allowed('orders.manage')],['Amministrazione','reports','Report',allowed('cash.read')],['Amministrazione','audit','Registro operazioni',allowed('audit.read')],
       ['Sistema','tickets','Ticket',allowed('tickets.use')||allowed('tickets.manage')],['Sistema','owner','Gestione utenti',allowed('owner')],
       ['Sistema','permissions','Ruoli e permessi',allowed('owner')],['Sistema','settings','Impostazioni',!pending],['Sistema','access','Richiesta accesso',pending],
     ];
     navigation=all.filter(x=>x[3]);
-    ops=operations({el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me});
-    const registry={...ops,activity:auditLog,tickets,suppliers,catalog,market,owner:()=>owner('users'),permissions:()=>owner('permissions'),settings,access,audit:auditLog};
+    const ctx={el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me,roles:roleLabels};
+    const extra=extension(ctx);
+    ops=operations({...ctx,inventoryTools:extra.inventoryTools});
+    const registry={...ops,activity:auditLog,tickets,suppliers,catalog,market,purchases:extra.purchases,owner:()=>extra.owner('users'),permissions:()=>extra.owner('permissions'),settings,access,audit:auditLog};
     pages=Object.fromEntries(navigation.map(([,id])=>[id,registry[id]]));
     const grouped=new Map();
     for(const [group,id,label] of navigation){

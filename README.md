@@ -32,3 +32,9 @@ Conservare le variabili di ambiente e il redirect OAuth configurati.
 
 La migrazione aggiunge soglie materiali, assegnazioni e storico ordini, lavorazioni collegate e movimenti contabili. Gli ordini preesistenti conservano lo stato corrente. Lo storico cronologico copre gli eventi registrati dopo l'aggiornamento.
 I valori delle scorte usano i prezzi di riferimento disponibili. Il margine lordo resta indeterminato finché manca una rilevazione storica del costo del venduto.
+
+## Aggiornamento 0.3 — Acquisti e controlli Owner
+
+L'aggiornamento aggiunge Acquisti in Commercio, gestione account e permessi in Sistema e rettifiche/anagrafica Owner nel Magazzino. SQLite migra automaticamente lo schema da v2 a v3 in una transazione. Verificare il volume persistente e conservare un backup consistente prima del deploy sul servizio esistente.
+
+Il fabbisogno comprende ordini accettati, in preparazione o in produzione, soglie, craft programmati e aggiunte manuali. Gli ordini già pronti hanno già scaricato la riserva dal magazzino. Le consegne attese riducono la lista residua, ma solo la registrazione della ricezione aggiorna la scorta. Per evitare registrazioni duplicate riutilizzare il riferimento originale della ricezione o del pagamento in caso di tentativo ripetuto. Il confronto applica sconti documentati e verifica la disponibilità solo se registrata. Se i costi di trasporto non sono confrontabili fra tutte le offerte, la graduatoria usa il solo prezzo dei materiali.

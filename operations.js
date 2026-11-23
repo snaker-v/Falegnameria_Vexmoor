@@ -1,7 +1,7 @@
 import { categories,category,photo } from './products.js';
 
 export function operations(ctx) {
-  const {el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me}=ctx;
+  const {el,api,button,form,input,pick,table,money,allowed,show,status,modal,drawer,me,inventoryTools}=ctx;
   const box=(cls,...children)=>{const node=el('div',null,{className:cls});node.append(...children);return node;};
   const title=(name,desc,action)=>box('page-heading',box('',el('h1',name),desc?el('p',desc):el('span','')),...(action?[action]:[]));
   const badge=(name,tone='neutral')=>el('span',name,{className:'badge '+tone});
@@ -89,18 +89,20 @@ export function operations(ctx) {
     return [title('Notifiche','Operazioni che richiedono attenzione.'),entries.length?box('feed',...entries):empty('Non ci sono notifiche in sospeso.')];
   }
   async function stock() {
-    const [items,moves]=await Promise.all([api('inventory'),api('moves')]);
-    const filter=pick('category',categoryOptions());
+    const [items,suppliers]=await Promise.all([api('inventory'),permits(['owner'],'suppliers')]);
+    const tools=allowed('owner')?inventoryTools(items,suppliers):null;
+    const custom=[...new Set(items.filter(i=>i.category).map(i=>i.category))].filter(c=>!categories[c]);
+    const filter=pick('category',[...categoryOptions(),...custom.map(c=>[c,c])]);
     filter.setAttribute('aria-label','Categoria materiali');
     const sort=pick('sort',[['name','Nome A–Z'],['stock','Quantità crescente'],['value','Valore decrescente']]);
     sort.setAttribute('aria-label','Ordina inventario');
     const search=query('Cerca materiale');
     const grid=box('inventory-results');
     let mode='table';
-    function details(item,editing=false) {
-      const list=moves.filter(m=>m.item_id===item.id);
+    async function details(item,editing=false) {
+      const list=await api('item-moves',{item:item.id});
       const contents=[metrics(['Scorta disponibile',item.stock,'Unità registrate'],['Valore unitario',money(item.reference_cents),'Riferimento']),
-        panel('Ultimi movimenti',list.length?table(['Data','Quantità','Causale'],list.map(m=>[age(m.created_at),m.delta,m.reason])):empty('Nessun movimento per questo articolo.'))];
+        panel('Movimenti',list.length?table(['Data','Operatore','Prima','Dopo','Variazione','Causale'],list.map(m=>[age(m.created_at),m.actor,m.previous_stock,m.new_stock,m.delta,m.reason])):empty('Nessun movimento per questo articolo.'))];
       if(allowed('inventory.write')) {
         contents.push(panel('Soglia scorta',form([['Soglia minima',Object.assign(input('minimum','number'),{min:0,max:1000000,value:item.minimum})]],'Salva soglia',async d=>{
           await api('stock-minimum',{id:item.id,minimum:Number(d.minimum)});
@@ -118,26 +120,31 @@ export function operations(ctx) {
         }));
         else contents.unshift(button('Carico, scarico o rettifica',()=>details(item,true)));
       }
+      if(tools)contents.unshift(box('quick-actions',button('Modifica articolo',()=>{document.getElementById('drawer').close();tools.edit(item);}),
+        button('Rettifica scorte',()=>{document.getElementById('drawer').close();tools.adjust(item);})));
+      if(item.description)contents.unshift(el('p',item.description));
       drawer(item.name,...contents);
     }
     function draw() {
-      const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||category(i.name)===filter.value))
+      const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||(i.category||category(i.name))===filter.value))
         .sort((a,b)=>sort.value==='stock'?a.stock-b.stock:sort.value==='value'?(b.reference_cents??-1)-(a.reference_cents??-1):a.name.localeCompare(b.name,'it'));
       if(!rows.length){grid.replaceChildren(empty('Nessun materiale corrisponde ai filtri.'));return;}
       const state=i=>i.stock===0?badge('Esaurito','bad'):i.stock<i.minimum?badge('Scorta bassa','warn'):badge('Disponibile','good');
       grid.replaceChildren(mode==='table'?table(['Materiale','Categoria','Quantità','Valore unitario','Stato'],rows.map(i=>[
-        button(i.name,()=>details(i)),categories[category(i.name)][0],i.stock,money(i.reference_cents),state(i)
+        button(i.name,()=>details(i)),i.category||categories[category(i.name)][0],i.stock,money(i.reference_cents),state(i)
       ])):box('stock-grid',...rows.map(i=>box('panel stock-card',pict(i.name),button(i.name,()=>details(i)),box('split',el('strong',i.stock+' pz'),state(i)),el('small',money(i.reference_cents)+' / pz')))));
     }
     const modeSwitch=pick('mode',[['table','Vista operativa'],['cards','Vista visuale']]);
     modeSwitch.setAttribute('aria-label','Modalità inventario');
     modeSwitch.onchange=()=>{mode=modeSwitch.value;draw();};
     search.oninput=filter.onchange=sort.onchange=draw;draw();
-    return [title('Magazzino','Scorte, valori di riferimento e movimenti dei materiali.'),metrics(['Articoli',items.length,'Anagrafica materiali'],['Con scorta',items.filter(i=>i.stock>0).length,'Articoli disponibili'],['Esauriti',items.filter(i=>i.stock===0).length,'Articoli a zero']),box('toolbar',search,filter,sort,modeSwitch),grid];
+    return [title('Magazzino','Scorte, valori di riferimento e movimenti dei materiali.'),metrics(['Articoli',items.length,'Anagrafica materiali'],['Con scorta',items.filter(i=>i.stock>0).length,'Articoli disponibili'],['Esauriti',items.filter(i=>i.stock===0).length,'Articoli a zero']),box('toolbar',search,filter,sort,modeSwitch,...(tools?[button('＋ Nuovo articolo',()=>tools.edit()),
+      button('Rettifica scorte',()=>tools.adjust()),button('Carico e scarico multiplo',tools.bulk)]:[])),grid];
   }
 
   async function production() {
-    const [items,ingredients,history,materials,orders]=await Promise.all([api('catalog'),api('recipes'),api('production'),permits(['inventory.read'],'inventory'),permits(['orders.manage'],'orders')]);
+    const [catalog,ingredients,history,materials,orders]=await Promise.all([api('catalog'),api('recipes'),api('production'),permits(['inventory.read'],'inventory'),permits(['orders.manage'],'orders')]);
+    const items=catalog.filter(i=>i.yield_qty!==null);
     const entries=new Map(materials.map(m=>[m.id,m]));
     const search=query('Cerca una ricetta');
     const filter=pick('category',categoryOptions());filter.setAttribute('aria-label','Categoria ricetta');
@@ -198,7 +205,7 @@ export function operations(ctx) {
       schedule();
     }
     function draw(){
-      const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||category(i.name)===filter.value));
+      const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||(i.category||category(i.name))===filter.value));
       list.replaceChildren(...(rows.length?rows.map(item=>{
         const b=button('',()=>select(item));b.className='recipe-pick';b.setAttribute('aria-current',String(active?.id===item.id));
         b.append(pict(item.name),box('',el('strong',item.name),el('small',item.yield_qty+' pz / craft')));return b;
