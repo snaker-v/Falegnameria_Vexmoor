@@ -1,3 +1,4 @@
+import { stockCoverage } from './procurement-db.mjs';
 import { catalogImages } from './products.js';
 import { registerEconomy } from './economy-routes.mjs';
 import { costs, customerQuote } from './economy.mjs';
@@ -106,6 +107,7 @@ route('POST','/api/permissions','owner',({user,input})=>{
   return {ok:true};
 });
 route('GET','/api/inventory','inventory.read',()=>db.prepare('SELECT i.*,(r.item_id IS NOT NULL) AS craft FROM items i LEFT JOIN recipes r ON r.item_id=i.id ORDER BY i.name').all());
+route('GET','/api/inventory-coverage','inventory.read',()=>stockCoverage(db));
 route('POST','/api/inventory','inventory.write',({user,input})=>{
   const id=string(input.id,100);
   const reason=string(input.reason,200);

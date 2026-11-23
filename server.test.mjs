@@ -290,6 +290,14 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     await post('purchases/correct',{...corrected,previous:latest,quantity:1},409);
     assert.equal((await get('purchases')).find(r=>r.id===receiptToCorrect.id).item_id,'ferro');
     assert.equal(stock('acciaio'),steelBefore-10);
+    const rawCoverage=(await get('inventory-coverage')).find(i=>i.id==='acciaio');
+    assert.equal(rawCoverage.state,'refill');
+    assert(rawCoverage.products.some(p=>p.name==='Ascia'&&p.pieces===0));
+    await post('inventory',{id:'acciaio',delta:2,reason:'Verifica copertura'});
+    await post('inventory',{id:'ferro',delta:4,reason:'Verifica copertura'});
+    const readyCoverage=(await get('inventory-coverage')).find(i=>i.id==='acciaio');
+    assert.equal(readyCoverage.products.find(p=>p.name==='Ascia').pieces,8);
+    assert.equal((await request('/api/inventory-coverage',customer)).status,403);
     const log=await get('audit');
     for(const action of ['account.updated','permissions.matrix','stock.item','stock.batch','purchase.received','purchase.payment','production'])
       assert(log.some(r=>r.action===action),action);

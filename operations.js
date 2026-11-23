@@ -98,7 +98,11 @@ export function operations(ctx) {
     return [title('Notifiche','Operazioni che richiedono attenzione.'),entries.length?box('feed',...entries):empty('Non ci sono notifiche in sospeso.')];
   }
   async function stock() {
-    const [items,suppliers]=await Promise.all([api('inventory'),permits(['owner'],'suppliers')]);
+    const [items,suppliers,coverage]=await Promise.all([api('inventory'),permits(['owner'],'suppliers'),api('inventory-coverage')]);
+    const byItem=new Map(coverage.map(row=>[row.id,row]));
+    const stateLabels={ok:['Scorta adeguata','good'],refill:['Da rifornire','bad'],incoming:['In arrivo','warn'],
+      craft:['Da produrre','warn'],empty:['Esaurito','warn']};
+    const state=item=>badge(...(stateLabels[byItem.get(item.id)?.state]??['Aggiorna dati','warn']));
     const tools=allowed('owner')?inventoryTools(items,suppliers):null;
     const custom=[...new Set(items.filter(i=>i.category).map(i=>i.category))].filter(c=>!categories[c]);
     const filter=pick('category',[...categoryOptions(),...custom.map(c=>[c,c])]);
@@ -110,7 +114,18 @@ export function operations(ctx) {
     let mode='table';
     async function details(item,editing=false) {
       const list=await api('item-moves',{item:item.id});
-      const contents=[metrics(['Scorta disponibile',item.stock,'Unità registrate'],['Valore unitario',money(item.reference_cents),'Riferimento']),
+      const stockPlan=byItem.get(item.id);
+      if(!stockPlan){await show('stock');return;}
+      const number=n=>n.toLocaleString('it-IT');
+      const availability=table(['Articolo ottenibile','Pezzi producibili ora','Mancanti per un craft'],stockPlan.products.map(p=>[
+        p.name,(p.capped?'≥ ':'')+number(p.pieces),p.missing.map(m=>number(m.quantity)+' × '+m.name).join(', ')||'—',
+      ]));
+      const cover=panel('Copertura e produzione',state(item),
+        el('p','Fabbisogno '+number(stockPlan.demand)+' · Soglia a fine produzione '+number(stockPlan.buffer)+
+          ' · Minimo per un craft '+number(stockPlan.minimumForCraft)+' · Mancanti '+number(stockPlan.gap)+' · In arrivo '+number(stockPlan.inbound)),
+        ...(stockPlan.products.length?[el('p','Stima per singolo articolo con le scorte attuali e gli intermedi producibili. I massimi non si sommano.'),availability]:
+          [el('p','Questo articolo non è un ingrediente delle ricette attuali.')]));
+      const contents=[cover,metrics(['Scorta disponibile',item.stock,'Unità registrate'],['Valore unitario',money(item.reference_cents),'Riferimento']),
         panel('Movimenti',list.length?table(['Data','Operatore','Prima','Dopo','Variazione','Causale'],list.map(m=>[age(m.created_at),m.actor,m.previous_stock,m.new_stock,m.delta,m.reason])):empty('Nessun movimento per questo articolo.'))];
       if(allowed('inventory.write')) {
         contents.push(panel('Soglia scorta',form([['Soglia minima',Object.assign(input('minimum','number'),{min:0,max:1000000,value:item.minimum})]],'Salva soglia',async d=>{
@@ -138,7 +153,6 @@ export function operations(ctx) {
       const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||(i.category||category(i.name))===filter.value))
         .sort((a,b)=>sort.value==='stock'?a.stock-b.stock:sort.value==='value'?(b.reference_cents??-1)-(a.reference_cents??-1):a.name.localeCompare(b.name,'it'));
       if(!rows.length){grid.replaceChildren(empty('Nessun materiale corrisponde ai filtri.'));return;}
-      const state=i=>i.stock===0?badge('Esaurito','bad'):i.stock<i.minimum?badge('Scorta bassa','warn'):badge('Disponibile','good');
       grid.replaceChildren(mode==='table'?table(['Materiale','Categoria','Quantità','Valore unitario','Stato'],rows.map(i=>[
         button(i.name,()=>details(i)),i.category||categories[category(i.name)][0],i.stock,money(i.reference_cents),state(i)
       ])):box('stock-grid',...rows.map(i=>box('panel stock-card',pict(i.name,i.id),button(i.name,()=>details(i)),box('split',el('strong',i.stock+' pz'),state(i)),el('small',money(i.reference_cents)+' / pz')))));
@@ -147,7 +161,7 @@ export function operations(ctx) {
     modeSwitch.setAttribute('aria-label','Modalità inventario');
     modeSwitch.onchange=()=>{mode=modeSwitch.value;draw();};
     search.oninput=filter.onchange=sort.onchange=draw;draw();
-    return [title('Magazzino','Scorte, valori di riferimento e movimenti dei materiali.'),metrics(['Articoli',items.length,'Anagrafica materiali'],['Con scorta',items.filter(i=>i.stock>0).length,'Articoli disponibili'],['Esauriti',items.filter(i=>i.stock===0).length,'Articoli a zero']),box('toolbar',search,filter,sort,modeSwitch,...(tools?[button('＋ Nuovo articolo',()=>tools.edit()),
+    return [title('Magazzino','Scorte, valori di riferimento e movimenti dei materiali.'),metrics(['Articoli',items.length,'Anagrafica materiali'],['Con scorta',items.filter(i=>i.stock>0).length,'Articoli disponibili'],['Da rifornire',coverage.filter(i=>i.state==='refill').length,'Materiali da riapprovvigionare']),box('toolbar',search,filter,sort,modeSwitch,...(tools?[button('＋ Nuovo articolo',()=>tools.edit()),
       button('Rettifica scorte',()=>tools.adjust()),button('Carico e scarico multiplo',tools.bulk)]:[])),grid];
   }
 

@@ -1,4 +1,4 @@
-import { transaction, key } from './db.mjs';
+import { transaction, key, plan } from './db.mjs';
 
 export const ford = ['Boschi Ford','Miniere Ford','Fonderia Ford'];
 export function migrateProcurement(db) {
@@ -42,9 +42,8 @@ function components(db) {
   return result;
 }
 
-export function requirements(db) {
-  const items=db.prepare('SELECT * FROM items ORDER BY name').all();
-  const recipes=components(db),need=new Map(),minimum=new Map(),planned=new Map(),manual=new Map(),jobs=new Map();
+export function requirements(db, items=db.prepare('SELECT * FROM items ORDER BY name').all(), recipes=components(db)) {
+  const need=new Map(),minimum=new Map(),planned=new Map(),manual=new Map(),jobs=new Map();
   const add=(map,id,n)=>map.set(id,(map.get(id)??0)+n);
   for(const row of db.prepare(`SELECT l.item_id,SUM(l.quantity) quantity FROM order_lines l JOIN orders o ON o.id=l.order_id
     WHERE o.status IN ('accepted','preparing','producing') GROUP BY l.item_id`).all())add(need,row.item_id,row.quantity);
@@ -65,7 +64,7 @@ export function requirements(db) {
   const byId=new Map(items.map(i=>[i.id,i]));
   const inbound=new Map(db.prepare(`SELECT l.item_id,SUM(l.quantity-l.received) AS quantity FROM purchase_lines l JOIN purchase_orders p ON p.id=l.order_id
     WHERE p.state IN ('ordered','partial','confirmed','pickup') GROUP BY l.item_id`).all().map(r=>[r.item_id,r.quantity]));
-  const shortages=[];
+  const shortages=[], coverage=new Map();
   for(const id of order.reverse()){
     const item=byId.get(id);
     const stock=item.stock+(jobs.get(id)??0);
@@ -74,6 +73,7 @@ export function requirements(db) {
     const fromOrders=Math.max(0,demand-stock);
     const fromMinimum=Math.max(0,buffer-Math.max(0,stock-demand));
     const recipe=recipes.get(id);
+    coverage.set(id,{demand,buffer,gap:fromOrders+fromMinimum,inbound:inbound.get(id)??0});
     let buy=fromOrders+fromMinimum;
     if(recipe&&buy){
       const forDemand=Math.ceil(fromOrders/recipe.yield);
@@ -90,8 +90,50 @@ export function requirements(db) {
       fromMinimum:recipe?0:fromMinimum,manual:manual.get(id)??0,inbound:inbound.get(id)??0,
       toBuy:Math.max(0,buy-(inbound.get(id)??0)),reference_cents:item.reference_cents});
   }
-  return {underMinimum:items.filter(i=>i.stock<i.minimum).length,shortages:shortages.sort((a,b)=>a.name.localeCompare(b.name,'it')),planned:[...planned].map(([id,batches])=>({id,batches,name:byId.get(id).name})),
+  return {coverage,underMinimum:items.filter(i=>i.stock<i.minimum).length,shortages:shortages.sort((a,b)=>a.name.localeCompare(b.name,'it')),planned:[...planned].map(([id,batches])=>({id,batches,name:byId.get(id).name})),
     scheduled:[...jobs].map(([id,quantity])=>({id,name:byId.get(id).name,quantity}))};
+}
+
+export function stockCoverage(db) {
+  const items=db.prepare('SELECT * FROM items ORDER BY name').all();
+  const recipes=components(db);
+  const {coverage}=requirements(db,items,recipes);
+  const usedIn=new Map(items.map(item=>[item.id,[]]));
+  const involved=new Map(), minimumCraft=new Map();
+  for(const recipe of recipes.values())for(const part of recipe.parts){
+    minimumCraft.set(part.item_id,Math.min(minimumCraft.get(part.item_id)??Infinity,part.qty));
+  }
+  function ingredientsFor(id){
+    if(involved.has(id))return involved.get(id);
+    const input=new Set();
+    for(const component of recipes.get(id)?.parts??[]){
+      input.add(component.item_id);
+      for(const upstream of ingredientsFor(component.item_id))input.add(upstream);
+    }
+    involved.set(id,input);
+    return input;
+  }
+  for(const product of items.filter(item=>recipes.has(item.id))){
+    const recipe=recipes.get(product.id);
+    let low=0,high=10000;
+    while(low<high){
+      const batches=Math.ceil((low+high)/2);
+      if(Object.keys(plan(db,product.id,batches,true).shortages).length)high=batches-1;
+      else low=batches;
+    }
+    const single=low===0?plan(db,product.id,1,true).shortages:{};
+    const estimate={name:product.name,pieces:low*recipe.yield,capped:low===10000,
+      missing:items.filter(item=>Object.hasOwn(single,item.id)).map(item=>({name:item.name,quantity:single[item.id]}))};
+    for(const id of ingredientsFor(product.id))usedIn.get(id).push(estimate);
+  }
+  return items.map(item=>{
+    const need=coverage.get(item.id),products=usedIn.get(item.id);
+    const minimumForCraft=minimumCraft.get(item.id)??0;
+    const gap=Math.max(need.gap,minimumForCraft-item.stock);
+    const state=gap?(recipes.has(item.id)?'craft':need.inbound>=gap?'incoming':'refill')
+      :item.stock===0?'empty':'ok';
+    return {id:item.id,...need,gap,minimumForCraft,state,products};
+  });
 }
 
 export function comparisons(db, needs) {
