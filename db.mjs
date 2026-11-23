@@ -1,4 +1,5 @@
-import { costs, migrateEconomy } from './economy.mjs';
+import { migrateTrade } from './trade.mjs';
+import { costs, migrateEconomy, materialPrices } from './economy.mjs';
 import { migrateProcurement } from './procurement-db.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
@@ -126,6 +127,9 @@ export function open(path) {
       ALTER TABLE cash_entries ADD COLUMN sale_channel TEXT NOT NULL DEFAULT 'counter' CHECK(sale_channel IN ('counter','display'));
       PRAGMA user_version=6;
     `);
+  });
+  transaction(db,()=>{
+    if(db.prepare('PRAGMA user_version').get().user_version===6)migrateTrade(db,materialPrices);
   });
   return db;
 }

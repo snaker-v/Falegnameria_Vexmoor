@@ -1,3 +1,4 @@
+import { agreementRates, purchaseRate } from './trade.mjs';
 import { transaction, key, plan } from './db.mjs';
 
 export const ford = ['Boschi Ford','Miniere Ford','Fonderia Ford'];
@@ -138,6 +139,7 @@ export function stockCoverage(db) {
 
 export function comparisons(db, needs) {
   const market=db.prepare('SELECT * FROM competitors').all();
+  const commercial=agreementRates(db);
   const offers=db.prepare('SELECT o.*,s.name FROM supplier_offers o JOIN suppliers s ON s.id=o.supplier_id').all();
   const free=db.prepare(`SELECT l.item_id,p.ford_source,SUM(l.quantity-l.received) AS quantity FROM purchase_lines l JOIN purchase_orders p ON p.id=l.order_id
     WHERE p.ford_source IS NOT NULL AND p.state IN ('confirmed','pickup','partial') GROUP BY l.item_id,p.ford_source`).all();
@@ -157,6 +159,11 @@ export function comparisons(db, needs) {
       };
       if(listed)options[options.indexOf(listed)]=merged;
       else options.push(merged);
+    }
+    for(const rate of commercial.filter(r=>r.item_id===item.id)){
+      const offer=offers.find(o=>o.supplier_id===rate.supplier_id&&o.item_id===item.id);
+      options.push({supplier_id:rate.supplier_id,name:rate.name,city:'Saint Denis',kind:'Convenzione Saint Denis',unit_cents:purchaseRate(rate,quantity),
+        threshold:rate.threshold,transport_cents:offer?.transport_cents??null,available:offer?.available??null,observed:offer?.observed??null});
     }
     const fordOptions=free.filter(f=>f.item_id===item.id);
     for(const o of options)o.materialTotal=o.unit_cents===null?null:Math.round(o.unit_cents*quantity*(10000-(o.discount_bps??0))/10000);

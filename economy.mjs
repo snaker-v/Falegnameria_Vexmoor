@@ -1,3 +1,4 @@
+import { agreementRates, agreementDiscount } from './trade.mjs';
 export const materialPrices={
   legno:10,'legno pregiato':12,ferro:7,acciaio:7,'argento grezzo':40,fibra:5,'diamanti grezzi':84,
   'pirite grezza':22,'quarzo grezzo':28,'lana lavorata':65,"pepite d'oro":100,chiodo:15,'lingotto di rame':180,
@@ -67,6 +68,7 @@ export function costs(db){
     pricing.set(row.id,row.reference_cents!==null&&(!best||row.reference_cents<=best.cents)
       ?{cents:row.reference_cents,source:sources.get(row.id)??null,observed:null}:best??{cents:null,source:null,observed:null});
   }
+  const agreements=new Map(agreementRates(db).map(rate=>[rate.item_id,rate]));
   const breakdown=new Map();
   function inputs(id){
     if(breakdown.has(id))return breakdown.get(id);
@@ -80,11 +82,12 @@ export function costs(db){
     const batches=recipe?Math.ceil(demand/recipe.yield):null, output=recipe?batches*recipe.yield:demand;
     const materials=[...inputs(id)].map(([raw,n])=>{
       const money=pricing.get(raw),quantity=n*output;
-      return {id:raw,name:items.get(raw).name,quantity,...money,total:money.cents===null?null:quantity*money.cents};
+      return {id:raw,name:items.get(raw).name,quantity,...money,agreement:agreements.get(raw)??null,total:money.cents===null?null:quantity*money.cents};
     });
     const missing=materials.filter(m=>m.cents===null).map(m=>m.name);
     const subtotal=materials.reduce((n,m)=>n+(m.total??0),0),total=missing.length?null:subtotal;
     const unit=total===null?null:total/output;
+    const agreementUnit=unit===null?null:materials.reduce((n,m)=>n+m.quantity*Math.min(m.cents,m.agreement?.ordinary??Infinity),0)/output;
     const margin=price===null||unit===null?null:price-unit;
     const residual=new Map(),gross=new Map();
     function consume(item,n){
@@ -98,7 +101,7 @@ export function costs(db){
     consume(id,output);
     const whole=[...gross].map(([raw,quantity])=>({name:items.get(raw).name,quantity,...pricing.get(raw)}));
     const wholeSubtotal=whole.reduce((n,r)=>n+r.quantity*(r.cents??0),0);
-    return {materials,missing,subtotal,total,unit,batches,yield:recipe?.yield??null,output,price,margin,
+    return {materials,missing,subtotal,total,unit,agreementUnit,batches,yield:recipe?.yield??null,output,price,margin,
       percent:margin===null||!price?null:margin/price*100,revenue:price===null?null:demand*price,
       whole,wholeSubtotal,wholeTotal:whole.some(r=>r.cents===null)?null:wholeSubtotal,
       residual:[...residual].filter(([,n])=>n>0).map(([item,quantity])=>({name:items.get(item).name,quantity}))};
@@ -123,11 +126,15 @@ export function marketPrices(db){
 export function customerQuote(db,customer,item,publicCents,model){
   const tier=db.prepare(`SELECT p.id,p.discount FROM customer_tiers c JOIN price_tiers p ON p.id=c.tier WHERE c.user_id=?`).get(customer);
   const override=db.prepare('SELECT * FROM customer_prices WHERE user_id=? AND item_id=?').get(customer,item);
-  const cents=override?.cents??Math.round(publicCents*(10000-(tier?.discount??0))/10000);
+  const agreement=db.prepare('SELECT * FROM commercial_agreements WHERE customer_id=? AND active=1').get(customer);
+  const discount=agreement?agreementDiscount(agreement,item):tier?.discount??0;
+  const cents=override?.cents??Math.round(publicCents*(10000-discount)/10000);
   const value=model.estimate(item,1,cents);
   const discounted=cents<publicCents;
   const under=discounted&&value.unit!==null&&cents+1e-9<value.unit;
   const incomplete=discounted&&value.unit===null;
-  return {cents,tier:tier?.id??'normal',under,incomplete,blocked:under&&!(override?.approved_cost!==null&&override?.approved_cost>=value.unit)
+  const low=Boolean(agreement&&discounted&&value.percent!==null&&value.percent<20);
+  const approved=override?.approved_cost!=null&&override.approved_cost>=value.unit;
+  return {cents,tier:agreement?'saint-denis':tier?.id??'normal',under,incomplete,low,blocked:(under||low)&&!approved
     ||incomplete&&!override?.incomplete};
 }

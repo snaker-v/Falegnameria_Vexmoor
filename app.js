@@ -81,7 +81,7 @@ async function auditLog() {
   return [heading('Registro operazioni'),table(['Data UTC','Operatore','Operazione','Dettagli'],rows.map(r=>[r.created_at,r.actor,r.action,r.details]))];
 }
 async function suppliers() {
-  const [directory,history,items]=await Promise.all([api('suppliers'),api('purchases'),
+  const [directory,history,agreements,items]=await Promise.all([api('suppliers'),api('purchases'),api('commercial-agreements'),
     allowed('inventory.read')?api('inventory'):Promise.resolve([])]);
   const content=[heading('Fornitori')];
   if (allowed('suppliers.write')) {
@@ -116,6 +116,23 @@ async function suppliers() {
         await show('suppliers');
         status(result.changed?'Fornitura rettificata.':'Nessuna modifica alla fornitura.');
       }));
+  }
+  for(const a of agreements.agreements){
+    content.push(el('h3',a.name+' · '+(a.active?'Convenzione attiva':'Convenzione sospesa')));
+    content.push(el('p','Casse e contenitori '+a.containers_bps/100+'% · Assi '+a.boards_bps/100+'% · Attrezzature standard '+a.standard_bps/100+'% · Grandi forniture e lavorazioni speciali su preventivo.'));
+    content.push(table(['Materiale','Tariffa ordinaria','Tariffa quantità','Soglia',...(allowed('owner')?['Azioni']:[])],
+      agreements.rates.filter(r=>r.supplier_id===a.supplier_id).map(r=>[
+        items.find(it=>it.id===r.item_id)?.name??r.item_id,money(r.ordinary),money(r.bulk),r.threshold,
+        ...(allowed('owner')?[button('Modifica tariffa',()=>modal('Tariffa · '+r.item_id,
+          form([['Ordinaria in centesimi',Object.assign(input('ordinary','number'),{value:r.ordinary,min:0})],
+            ['Quantità in centesimi',Object.assign(input('bulk','number'),{value:r.bulk,min:0})],
+            ['Soglia pezzi',Object.assign(input('threshold','number'),{value:r.threshold,min:1})]],
+          'Salva tariffa',async d=>{
+            await api('commercial-rate',{supplier:r.supplier_id,item:r.item_id,ordinary:Number(d.ordinary),
+              bulk:Number(d.bulk),threshold:Number(d.threshold)});
+            document.getElementById('modal').close();await show('suppliers');status('Tariffa aggiornata.');
+          })) )]:[]),
+      ])));
   }
   return [...content,table(['Fornitore','Condizioni'],directory.map(r=>[r.name,r.terms])),
     el('h3','Forniture ricevute'),table(['Data UTC','Fornitore','Materiale','Quantità','Costo totale','Nota',...(editable?['Azioni']:[])],

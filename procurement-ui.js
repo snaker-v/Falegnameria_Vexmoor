@@ -75,8 +75,9 @@ export function extension(ctx) {
     const priceTotal=o=>o.lines.some(l=>l.unit_cents===null)?null:sum(o.lines,l=>l.quantity*l.unit_cents);
     const pricePlan=sum(comparison,r=>r.best??0);
     const unmatched=comparison.filter(r=>r.quantity&&r.best===null).length;
-    function create(initial){
+    function create(initial,suggestedSupplier){
       const selection=pick('supplier',supplierOptions);
+      if(suggestedSupplier)selection.value=String(suggestedSupplier);
       const responsibility=filteredSelect('assignee',[['','Utente corrente'],...choices(staff)]);
       const editor=lineEditor(itemOptions,[['quantity','Quantità',1,true],['unit_cents','Prezzo unitario in centesimi RP','',false]], initial);
       const hint=el('p','Per una fornitura Ford, il prezzo monetario è zero.');
@@ -111,12 +112,12 @@ export function extension(ctx) {
       }));
       const header=panel('Suggerimento di acquisto',el('p',rationale),...pricing,
         ...(row.ford.length?[el('p',row.ford.map(f=>f.quantity+' pz da '+f.ford_source).join(', ')+' confermati e ancora da ricevere.')]:[]));
-      const list=row.options.length?table(['Fornitore','Città','Unitario','Sconto','Trasporto','Totale comparabile','Differenza','Disponibilità','Rilevazione'],
-        row.options.map(o=>[o.name,o.city,money(o.unit_cents),o.discount_bps?(o.discount_bps/100)+'%':'—',money(o.transport_cents),money(o.total),
+      const list=row.options.length?table(['Fornitore','Listino','Città','Unitario','Sconto','Trasporto','Totale comparabile','Differenza','Disponibilità','Rilevazione'],
+        row.options.map(o=>[o.name,o.kind+(o.threshold?' · soglia '+o.threshold:''),o.city,money(o.unit_cents),o.discount_bps?(o.discount_bps/100)+'%':'—',money(o.transport_cents),money(o.total),
           row.best===null||o.total===null||(o.available!==null&&o.available<row.quantity)?'—':money(o.total-row.best),
           o.available===null?'Da verificare':o.available+' pz',date(o.observed)])):empty('Nessuna rilevazione confrontabile per questo materiale.');
       drawer(row.name,header,list,...(row.quantity&&allowed('purchasing.create')?[button('Prepara ordine',()=>{
-        close('drawer');create([{item:row.id,quantity:row.quantity}]);
+        close('drawer');create([{item:row.id,quantity:row.quantity}],row.winners[0]?.supplier_id);
       })]:[]));
     }
     function orderDetail(o){

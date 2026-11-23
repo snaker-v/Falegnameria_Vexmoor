@@ -125,7 +125,7 @@ export function operations(ctx) {
           ' · Minimo per un craft '+number(stockPlan.minimumForCraft)+' · Mancanti '+number(stockPlan.gap)+' · In arrivo '+number(stockPlan.inbound)),
         ...(stockPlan.products.length?[el('p','Stima per singolo articolo con le scorte attuali e gli intermedi producibili. I massimi non si sommano.'),availability]:
           [el('p','Questo articolo non è un ingrediente delle ricette attuali.')]));
-      const contents=[cover,metrics(['Scorta disponibile',item.stock,'Unità registrate'],['Valore unitario',money(item.reference_cents),'Riferimento']),
+      const contents=[cover,metrics(['Scorta disponibile',item.stock,'Unità registrate'],['Valore unitario',money(item.reference_cents),'Riferimento'],['Costo standard',money(item.standard_cents),'Per pezzo'],['Costo convenzionato',money(item.agreement_cents),'Per pezzo, tariffe ordinarie']),
         panel('Movimenti',list.length?table(['Data','Operatore','Prima','Dopo','Variazione','Causale'],list.map(m=>[age(m.created_at),m.actor,m.previous_stock,m.new_stock,m.delta,m.reason])):empty('Nessun movimento per questo articolo.'))];
       if(allowed('inventory.write')) {
         contents.push(panel('Soglia scorta',form([['Soglia minima',Object.assign(input('minimum','number'),{min:0,max:1000000,value:item.minimum})]],'Salva soglia',async d=>{
@@ -153,8 +153,8 @@ export function operations(ctx) {
       const rows=items.filter(i=>match(i.name,search.value)&&(!filter.value||(i.category||category(i.name))===filter.value))
         .sort((a,b)=>sort.value==='stock'?a.stock-b.stock:sort.value==='value'?(b.reference_cents??-1)-(a.reference_cents??-1):a.name.localeCompare(b.name,'it'));
       if(!rows.length){grid.replaceChildren(empty('Nessun materiale corrisponde ai filtri.'));return;}
-      grid.replaceChildren(mode==='table'?table(['Materiale','Categoria','Quantità','Valore unitario','Stato'],rows.map(i=>[
-        button(i.name,()=>details(i)),i.category||categories[category(i.name)][0],i.stock,money(i.reference_cents),state(i)
+      grid.replaceChildren(mode==='table'?table(['Materiale','Categoria','Quantità','Riferimento / pz','Costo standard / pz','Vendita / pz','Valore scorte','Margine stimato / pz','Stato'],rows.map(i=>[
+        button(i.name,()=>details(i)),i.category||categories[category(i.name)][0],i.stock,money(i.reference_cents),money(i.standard_cents),money(i.sale_cents),money(i.stock_value),i.estimated_percent===null?money(i.estimated_margin):money(i.estimated_margin)+' · '+i.estimated_percent.toFixed(1)+'%',state(i)
       ])):box('stock-grid',...rows.map(i=>box('panel stock-card',pict(i.name,i.id),button(i.name,()=>details(i)),box('split',el('strong',i.stock+' pz'),state(i)),el('small',money(i.reference_cents)+' / pz')))));
     }
     const modeSwitch=pick('mode',[['table','Vista operativa'],['cards','Vista visuale']]);

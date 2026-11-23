@@ -106,7 +106,14 @@ route('POST','/api/permissions','owner',({user,input})=>{
   });
   return {ok:true};
 });
-route('GET','/api/inventory','inventory.read',()=>db.prepare('SELECT i.*,(r.item_id IS NOT NULL) AS craft FROM items i LEFT JOIN recipes r ON r.item_id=i.id ORDER BY i.name').all());
+route('GET','/api/inventory','inventory.read',()=>{
+  const model=costs(db);
+  return db.prepare('SELECT i.*,(r.item_id IS NOT NULL) AS craft FROM items i LEFT JOIN recipes r ON r.item_id=i.id ORDER BY i.name').all().map(i=>{
+    const c=model.estimate(i.id,1);
+    return {...i,standard_cents:c.unit,agreement_cents:c.agreementUnit,estimated_margin:c.margin,estimated_percent:c.percent,
+      stock_value:c.unit===null?null:c.unit*i.stock};
+  });
+});
 route('GET','/api/inventory-coverage','inventory.read',()=>stockCoverage(db));
 route('POST','/api/inventory','inventory.write',({user,input})=>{
   const id=string(input.id,100);
@@ -186,7 +193,7 @@ route('POST','/api/orders','orders.create',({user,input})=>{
       const product=db.prepare("SELECT name,sale_cents FROM items WHERE id=? AND (kind='finished' OR id IN (SELECT item_id FROM recipes))").get(item);
       requireAccess(product?.sale_cents!=null,'Articolo senza prezzo di vendita',409);
       const quote=customerQuote(db,user.id,item,product.sale_cents,model);
-      requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: richiedi l’autorizzazione dell’Owner':'Prezzo sotto costo: richiedi l’autorizzazione dell’Owner',409);
+      requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: richiedi l’autorizzazione dell’Owner':'Margine insufficiente: richiedi l’autorizzazione dell’Owner',409);
       db.prepare('INSERT INTO order_lines VALUES(?,?,?,?,?)').run(id,item,product.name,qty,quote.cents);
     }
     db.prepare("INSERT INTO order_events(order_id,actor,status) VALUES(?,?,'received')").run(id,user.id);
@@ -244,7 +251,7 @@ route('POST','/api/sales','sales.write',({user,input})=>transaction(db,()=>{
   requireAccess(!customer||db.prepare("SELECT u.id FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id WHERE u.id=? AND u.role='client' AND COALESCE(a.state,'active')='active'").get(customer),
     'Cliente non autorizzato',400);
   const quote=customerQuote(db,customer,item,product.sale_cents,costs(db));
-  requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: autorizzazione Owner necessaria':'Prezzo sotto costo: autorizzazione Owner necessaria',409);
+  requireAccess(!quote.blocked,quote.incomplete?'Costo incompleto: autorizzazione Owner necessaria':'Margine insufficiente: autorizzazione Owner necessaria',409);
   const {id}=db.prepare("INSERT INTO cash_entries(kind,cents,description,item_id,quantity,actor,sale_channel) VALUES('sale',?,?,?,?,?,?) RETURNING id")
     .get(quote.cents*quantity,product.name,item,quantity,user.id,channel);
   move(db,user.id,item,-quantity,(channel==='display'?'Messa in vetrina':'Vendita diretta')+' #'+id);

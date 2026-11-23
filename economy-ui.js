@@ -29,7 +29,7 @@ export function economics(ctx){
     });
     drawer(p.name,
       box('metrics',metric('Costo unitario',money(c.unit),statusOf(p)),metric('Bozza',p.draft?money(p.draft.cents):'—','Solo area riservata'),
-        metric('Prezzo pubblicato',money(p.published),'Applicabile in vetrina')),
+        metric('Prezzo pubblicato',money(p.published),'Applicabile in vetrina'),metric('Costo convenzionato / pz',money(c.agreementUnit),'Tariffe ordinarie'),metric('Prezzo riservato',money(p.reserved),'Solo cliente convenzionato')),
       edit,...(allowed('owner')&&p.draft?[button('Pubblica questo prezzo',()=>publish([p.id]))]:[]),
       panel('Costo e ricavo del lotto',table(['Craft','Pezzi','Costo teorico','Costo craft interi','Ricavo','Margine unitario','Margine %'],[
         [c.batches,c.output,money(c.total),money(c.wholeTotal),money(c.revenue),money(c.margin),c.percent===null?'—':local(c.percent)+'%']])),
@@ -67,10 +67,22 @@ export function economics(ctx){
       }));
       forms.push(form([['Cliente',pick('user',users)],['Prodotto',pick('item',lookup(products))],
         ['Prezzo speciale (centesimi RP, vuoto per rimuovere)',field('cents','','number')],
-        ['Autorizza sotto costo o costo incompleto',input('approve','checkbox',false)]],'Salva prezzo speciale',async d=>{
+        ['Autorizza margine insufficiente o costo incompleto',input('approve','checkbox',false)]],'Salva prezzo speciale',async d=>{
         if(d.approve&&!confirm('Confermi l’eccezione Owner per questo prezzo e prodotto?'))return;
         await api('economy-special',{...d,cents:num(d.cents),approve:d.approve==='on'});await done('Prezzo speciale aggiornato.');
       }));
+    }
+    for(const a of data.agreements){
+      const customer=pick('customer',[['','Nessun cliente collegato'],...users]);customer.required=false;customer.value=a.customer_id??'';
+      const active=pick('active',[[1,'Attiva'],[0,'Sospesa']]);active.value=String(a.active);
+      forms.push(panel(a.name,el('p','Casse e contenitori, assi e attrezzature hanno una sola aliquota. Grandi forniture e lavorazioni speciali: preventivo su misura.'),
+        form([['Cliente commerciale',customer],['Stato',active],['Casse e contenitori (%)',field('containers',a.containers_bps/100,'number')],
+          ['Assi (%)',field('boards',a.boards_bps/100,'number')],['Attrezzature standard (%)',field('standard',a.standard_bps/100,'number')]],
+          'Salva convenzione',async d=>{
+            await api('commercial-agreement',{supplier:a.supplier_id,customer:d.customer,active:Number(d.active),
+              containers:Math.round(Number(d.containers)*100),boards:Math.round(Number(d.boards)*100),standard:Math.round(Number(d.standard)*100)});
+            await done('Convenzione aggiornata.');
+          })));
     }
     drawer('Listini clienti',table(['Listino','Sconto'],data.tiers.map(t=>[tiers[t.id],local(t.discount/100)+'%'])),...forms,
       panel('Clienti',table(['Cliente','Listino assegnato'],data.customers.map(c=>[c.name,tiers[c.tier??'normal']]))),
@@ -106,12 +118,12 @@ export function economics(ctx){
       filter.hidden=false;
       const rows=products.filter(p=>contains(p.name,q.value)&&(filter.value==='all'
         ||filter.value==='missing'&&p.cost.unit===null||filter.value==='low'&&p.cost.percent!==null&&p.cost.percent<20||filter.value==='draft'&&p.draft));
-      out.replaceChildren(table(['Prodotto','Costo / pz','Prezzo pubblicato','Bozza','Margine / pz','Margine %','Minimo concorrenti','Indicatore'],
+      out.replaceChildren(table(['Prodotto','Costo / pz','Prezzo pubblicato','Bozza','Margine / pz','Margine %','Minimo concorrenti','Media concorrenti','Differenza dal minimo','Indicatore'],
         rows.map(p=>{
           const state=statusOf(p), tone=p.cost.margin<0?'bad':p.cost.unit===null||p.cost.percent!==null&&p.cost.percent<20?'warn':'good';
           const position=p.market.deltaMin===null?null:p.market.deltaMin>0?'Sopra il minimo concorrente':p.market.deltaMin<0?'Sotto il minimo concorrente':'Allineato al minimo';
           return [button(p.name,()=>productDetail(p)),money(p.cost.unit),money(p.published),p.draft?money(p.draft.cents):'—',money(p.cost.margin),
-            p.cost.percent===null?'—':local(p.cost.percent)+'%',money(p.market.min),box('quick-actions',badge(state,tone),...(position?[badge(position,p.market.deltaMin>0?'warn':'good')]:[]))];
+            p.cost.percent===null?'—':local(p.cost.percent)+'%',money(p.market.min),money(p.market.avg),money(p.market.deltaMin),box('quick-actions',badge(state,tone),...(position?[badge(position,p.market.deltaMin>0?'warn':'good')]:[]))];
         })));
     }
     q.oninput=mode.onchange=filter.onchange=render;render();

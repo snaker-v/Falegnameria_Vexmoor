@@ -1,3 +1,4 @@
+import { agreementRates, agreementDiscount } from './trade.mjs';
 import { audit,transaction } from './db.mjs';
 import { costs,marketPrices,customerQuote } from './economy.mjs';
 
@@ -56,13 +57,14 @@ export function registerEconomy({route,db,requireAccess:check,string,integer}){
   }));
   route('GET','/api/economy','catalog.write',()=>{
     const model=costs(db), market=marketPrices(db);
+    const agreement=db.prepare("SELECT * FROM commercial_agreements WHERE active=1").get();
     const products=allProducts.all().map(p=>{
       const pending=getDraft.get(p.id), quote=pending?pending.cents:p.sale_cents;
       const calc=model.estimate(p.id,model.recipes.get(p.id)?.yield??1,quote);
       const offers=market.get(p.id)??[];
       const min=offers.length?Math.min(...offers.map(o=>o.cents)):null;
       const avg=offers.length?offers.reduce((n,r)=>n+r.cents,0)/offers.length:null;
-      return {id:p.id,name:p.name,stock:p.stock,published:p.sale_cents,draft:pending??null,cost:calc,
+      return {id:p.id,name:p.name,stock:p.stock,reserved:agreement&&quote!==null?Math.round(quote*(10000-agreementDiscount(agreement,p.id))/10000):null,published:p.sale_cents,draft:pending??null,cost:calc,
         market:{min,max:offers.length?Math.max(...offers.map(o=>o.cents)):null,avg,best:offers.filter(o=>o.cents===min).map(o=>({business:o.business,city:o.city})),
           deltaMin:quote===null||min===null?null:quote-min,deltaAvg:quote===null||avg===null?null:quote-avg}};
     });
@@ -98,7 +100,31 @@ export function registerEconomy({route,db,requireAccess:check,string,integer}){
       margin:margins.length?margins.reduce((n,p)=>n+p,0)/margins.length:null};
   });
   route('GET','/api/economy-history','owner',()=>db.prepare(`SELECT h.*,i.name FROM price_history h JOIN items i ON i.id=h.item_id ORDER BY h.id DESC`).all());
+  route('GET','/api/commercial-agreements','suppliers.read',()=>({
+    agreements:db.prepare('SELECT a.*,s.name FROM commercial_agreements a JOIN suppliers s ON s.id=a.supplier_id').all(),
+    rates:agreementRates(db),
+  }));
+  route('POST','/api/commercial-agreement','owner',({input,user})=>transaction(db,()=>{
+    const id=integer(input.supplier,1,Number.MAX_SAFE_INTEGER);
+    const target=input.customer?client(string(input.customer,20)).id:null;
+    const before=db.prepare('SELECT * FROM commercial_agreements WHERE supplier_id=?').get(id);
+    check(before,'Convenzione non trovata',404);
+    const active=integer(input.active,0,1),containers=integer(input.containers,0,10000);
+    const boards=integer(input.boards,0,10000),standard=integer(input.standard,0,10000);
+    db.prepare('UPDATE commercial_agreements SET customer_id=?,active=?,containers_bps=?,boards_bps=?,standard_bps=? WHERE supplier_id=?')
+      .run(target,active,containers,boards,standard,id);
+    audit(db,user.id,'commercial.agreement.edit',{before,after:{target,active,containers,boards,standard}});return {ok:true};
+  }));
+  route('POST','/api/commercial-rate','owner',({input,user})=>transaction(db,()=>{
+    const supplier=integer(input.supplier,1,Number.MAX_SAFE_INTEGER),item=string(input.item,100);
+    const ordinary=integer(input.ordinary,0,100000000),bulk=integer(input.bulk,0,ordinary),threshold=integer(input.threshold,1,100000);
+    const before=db.prepare('SELECT * FROM agreement_rates WHERE supplier_id=? AND item_id=?').get(supplier,item);
+    check(before,'Tariffa non trovata',404);
+    db.prepare('UPDATE agreement_rates SET ordinary=?,bulk=?,threshold=? WHERE supplier_id=? AND item_id=?').run(ordinary,bulk,threshold,supplier,item);
+    audit(db,user.id,'commercial.rate.edit',{before,after:{ordinary,bulk,threshold}});return {ok:true};
+  }));
   route('GET','/api/economy-customers','owner',()=>({
+    agreements:db.prepare('SELECT a.*,s.name FROM commercial_agreements a JOIN suppliers s ON s.id=a.supplier_id').all(),
     tiers:db.prepare('SELECT * FROM price_tiers').all(),
     customers:db.prepare(`SELECT u.id,rp.name,c.tier
       FROM users u JOIN rp_profiles rp ON rp.id=u.id LEFT JOIN account_controls a ON a.user_id=u.id LEFT JOIN customer_tiers c ON c.user_id=u.id
@@ -131,11 +157,13 @@ export function registerEconomy({route,db,requireAccess:check,string,integer}){
     else{
       const calc=costs(db).estimate(id,1,cents);
       const under=calc.unit!==null&&cents+1e-9<calc.unit;
+      const low=Boolean(db.prepare('SELECT 1 FROM commercial_agreements WHERE customer_id=? AND active=1').get(target))
+        && calc.percent!==null&&calc.percent<20;
       const incomplete=calc.unit===null;
-      check(!(under||incomplete)||input.approve===true,incomplete?'Costo incompleto: occorre l’autorizzazione esplicita dell’Owner':'Prezzo sotto costo: occorre l’autorizzazione esplicita dell’Owner',409);
+      check(!(under||low||incomplete)||input.approve===true,incomplete?'Costo incompleto: occorre l’autorizzazione esplicita dell’Owner':'Margine insufficiente: occorre l’autorizzazione esplicita dell’Owner',409);
       db.prepare(`INSERT INTO customer_prices VALUES(?,?,?,?,?) ON CONFLICT DO UPDATE SET cents=excluded.cents,
         approved_cost=excluded.approved_cost,incomplete=excluded.incomplete`)
-        .run(target,id,cents,under?calc.unit:null,Number(incomplete));
+        .run(target,id,cents,under||low?calc.unit:null,Number(incomplete));
     }
     audit(db,user.id,'price.special',{target,id,cents,approved:input.approve===true});return {ok:true};
   }));

@@ -176,8 +176,8 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal(initial.plan.planned.find(i=>i.id==='ascia').batches,2);
     assert.equal(initial.plan.planned.find(i=>i.id==='assi di legno').batches,1);
     const nails=initial.comparison.find(i=>i.id==='chiodo');
-    assert.equal(nails.best,1500);
-    assert.deepEqual(nails.winners.map(o=>o.city).sort(),['Blackwater','Saint Denis']);
+    assert.equal(nails.best,1200);
+    assert.deepEqual(nails.winners.map(o=>o.city),['Saint Denis']);
     assert(nails.winners.every(o=>o.available===null));
     const shop=initial.suppliers.find(s=>s.name==='Fabbro di Saint Denis').id;
     await post('procurement-offer',{item:'chiodo',supplier:shop,unit_cents:null,discount_bps:0,transport_cents:10,available:0});
@@ -223,8 +223,9 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.equal(economics.products.filter(p=>p.draft).length,34);
     const steel=economics.products.find(p=>p.id==='ascia di acciaio');
     assert.equal(steel.cost.unit,732);
-    assert.equal(steel.draft.cents,800);
-    assert(Math.abs(steel.cost.percent-8.5)<1e-9);
+    assert.equal(steel.draft.cents,750);
+    assert.equal(steel.cost.agreementUnit,672);
+    assert(Math.abs(steel.cost.percent-2.4)<1e-9);
     assert.equal(economics.products.find(p=>p.id==='zaino piccolo').cost.unit,null);
     assert.equal(economics.materials.find(m=>m.id==='ferro').actual,0);
     assert.equal(economics.materials.find(m=>m.id==='ferro').standard,7);
@@ -298,6 +299,22 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     const readyCoverage=(await get('inventory-coverage')).find(i=>i.id==='acciaio');
     assert.equal(readyCoverage.products.find(p=>p.name==='Ascia').pieces,8);
     assert.equal((await request('/api/inventory-coverage',customer)).status,403);
+    const agreement=(await get('commercial-agreements')).agreements[0];
+    assert.equal(agreement.customer_id,null);
+    const readyRates=await get('commercial-agreements');
+    assert.equal(readyRates.rates.length,3);
+    for(const [item,quantity,cents] of [['chiodo',100,12],['chiodo',500,10],
+      ['lingotto di ferro',20,220],['lingotto di ferro',50,200],['lingotto acciaio temperato',50,200]]){
+      const draft=await post('procurement-order',{supplier:agreement.supplier_id,lines:[{item,quantity,unit_cents:null}]});
+      assert.equal(db.prepare('SELECT unit_cents FROM purchase_lines WHERE order_id=?').get(draft.id).unit_cents,cents);
+    }
+    await post('economy-publish',{items:['assi di legno','ascia di acciaio']});
+    await post('commercial-agreement',{supplier:agreement.supplier_id,customer:client,active:1,containers:1000,boards:500,standard:1000});
+    const offers=await get('customer-catalog',customer);
+    assert.equal(offers.find(o=>o.id==='assi di legno').cents,133);
+    assert.equal(offers.find(o=>o.id==='ascia di acciaio').cents,675);
+    assert.equal(offers.find(o=>o.id==='ascia di acciaio').blocked,true);
+    assert.equal((await request('/api/commercial-rate',customer,{supplier:agreement.supplier_id,item:'chiodo',ordinary:20,bulk:18,threshold:500})).status,403);
     const log=await get('audit');
     for(const action of ['account.updated','permissions.matrix','stock.item','stock.batch','purchase.received','purchase.payment','production'])
       assert(log.some(r=>r.action===action),action);

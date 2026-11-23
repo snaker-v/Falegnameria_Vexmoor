@@ -1,3 +1,4 @@
+import { agreementRates, purchaseRate } from './trade.mjs';
 import { costs } from './economy.mjs';
 import { audit, move, transaction, key } from './db.mjs';
 import { comparisons, ford, requirements } from './procurement-db.mjs';
@@ -86,10 +87,12 @@ export function registerProcurement({route,db,requireAccess:check,string,integer
       WHERE u.id=? AND u.role IN ('worker','manager','director','accountant') AND COALESCE(a.state,'active')='active'`,assignee),'Responsabile non valido',400);
     const {id:order}=db.prepare('INSERT INTO purchase_orders(supplier_id,ford_source,state,notes,assignee) VALUES(?,?,?,?,?) RETURNING id')
       .get(s.id,source,source?'request':'draft',optional(input.notes,500),assignee);
+    const rates=agreementRates(db).filter(r=>r.supplier_id===s.id);
     for(const line of rows(input.lines)){
       const item=exists('SELECT id,reference_cents FROM items WHERE id=?',itemId(line.item));
       check(item,'Articolo non trovato',404);
-      const n=integer(line.quantity,1,100000),price=source?0:line.unit_cents===null?null:amount(line.unit_cents);
+      const n=integer(line.quantity,1,100000),rate=rates.find(r=>r.item_id===item.id);
+      const price=source?0:rate?purchaseRate(rate,n):line.unit_cents===null?null:amount(line.unit_cents);
       db.prepare('INSERT INTO purchase_lines(order_id,item_id,quantity,unit_cents,reference_cents) VALUES(?,?,?,?,?)').run(order,item.id,n,price,item.reference_cents);
     }
     audit(db,user.id,'purchase.created',{order,source,assignee});return {id:order};
