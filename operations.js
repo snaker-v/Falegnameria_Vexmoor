@@ -198,7 +198,7 @@ export function operations(ctx) {
       const qty=Number(quantity.value);
       if(!Number.isInteger(qty)||qty<1||qty>10000){aside.replaceChildren(empty('Inserisci una quantità da 1 a 10.000.'));return;}
       const count=Math.ceil(qty/active.yield_qty);
-      batches.textContent=count+' craft · '+count*active.yield_qty+' pezzi prodotti';
+      batches.textContent=count+' craft · '+count*active.yield_qty+' pezzi previsti';
       const diagram=center.querySelector('.tree-slot');
       diagram.replaceChildren(tree(active.id,count));
       const p={id:active.id,batches:count,intermediate:intermediate.checked};
@@ -210,9 +210,17 @@ export function operations(ctx) {
         aside.replaceChildren(panel('Disponibilità',lacking.length?recent(lacking,([id,n])=>record(entries.get(id)?.name??id,badge('−'+n,'bad'),'Mancanti'),''):badge('Materiali sufficienti','good')),
           panel('Costo standard',costDetails(el,cost,money)),
           panel('Sequenza di lavorazione',recent(result.steps,s=>record(entries.get(s.id)?.name??s.id,badge(s.output+' pz'),s.batches+' craft'),'')));
-        if(!lacking.length&&allowed('production.write'))aside.append(button('Avvia e registra produzione',async()=>{
-          if(!confirm('Confermi il consumo dei materiali e il carico dei prodotti finiti?'))return;
-          await api('production',{...p,orderId:job.value?Number(job.value):null});await show('production');status('Produzione registrata e scorte aggiornate.');
+        if(!lacking.length&&allowed('production.write'))aside.append(button('Registra lavorazione',()=>{
+          const output=result.steps.at(-1).output, name=active.name;
+          const orderId=job.value?Number(job.value):null;
+          const submit=button('Conferma e salva',async()=>{
+            const saved=await api('production',{...p,orderId});
+            document.getElementById('modal').close();
+            await show('production');
+            status('Lavorazione #'+saved.productionId+' registrata: '+output+' × '+name+'. Scorte aggiornate.');
+          });
+          modal('Conferma lavorazione',el('p',output+' × '+name+' · '+count+' craft'),
+            el('p','La conferma scarica i materiali, carica i prodotti e aggiunge la riga al registro lavorazioni.'),submit);
         }));
       }catch(error){if(seq===request)aside.replaceChildren(empty(error.message));}
     }
@@ -238,7 +246,7 @@ export function operations(ctx) {
     if(active)select(active);
     return [title('Laboratorio di produzione','Configura i craft e controlla la distinta prima di registrare la lavorazione.'),
       box('lab',box('panel recipe-browser',el('h2','Ricettario'),search,filter,list),center,aside),
-      panel('Registro lavorazioni',history.length?table(['Numero','Prodotto','Craft','Pezzi','Data'],history.map(r=>['#'+r.id,r.recipe_id,r.batches,r.output,age(r.created_at)])):empty('Nessuna lavorazione registrata.'))];
+      panel('Registro lavorazioni',history.length?table(['Numero','Prodotto','Craft','Pezzi','Data'],history.map(r=>['#'+r.id,r.recipe_id,r.batches,r.output,age(r.created_at)])):empty('Nessuna lavorazione registrata. Il calcolo è un’anteprima: per salvare usa Registra lavorazione.'))];
   }
   async function orders() {
     const [rows,catalog,staff]=await Promise.all([api('orders'),permits(['orders.create'],'customer-catalog'),permits(['orders.manage'],'staff')]);

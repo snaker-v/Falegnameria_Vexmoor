@@ -213,6 +213,7 @@ test('HTTP: ruoli, ordine multiarticolo, riserva atomica, incasso e verifica',as
     assert.deepEqual((await get('cash-entries')).filter(r=>r.purchase_order_id===purchase.id).map(r=>r.cents),[25,-100]);
     const result=await post('production',{id:'ascia',batches:2,intermediate:true,orderId:active[0]});
     assert.equal(result.steps.at(-1).output,16);
+    assert.equal((await get('production')).find(r=>r.id===result.productionId).output,16);
     assert.equal(stock('ferro'),0);
     assert.equal(stock('ascia'),16);
     assert.equal(db.prepare('SELECT order_id FROM production WHERE recipe_id=?').get('ascia').order_id,active[0]);

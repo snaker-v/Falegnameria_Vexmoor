@@ -176,8 +176,10 @@ export function craft(db, actor, id, batches, intermediate, orderId=null) {
       WHERE o.id=? AND l.item_id=? AND o.status IN ('accepted','preparing','producing')`).get(orderId,id)) return null;
     const result = plan(db,id,batches,intermediate);
     if (Object.keys(result.shortages).length) throw new Error('Scorte insufficienti per la produzione');
+    let productionId;
     for (const [index,step] of result.steps.entries()) {
       const entry = db.prepare('INSERT INTO production(recipe_id,batches,output,actor,order_id) VALUES(?,?,?,?,?) RETURNING id').get(step.id,step.batches,step.output,actor,index===result.steps.length-1?orderId:null);
+      productionId=entry.id;
       for (const ingredient of step.ingredients) move(db,actor,ingredient.id,-ingredient.qty,'Produzione #'+entry.id);
       move(db,actor,step.id,step.output,'Produzione #'+entry.id);
     }
@@ -186,7 +188,7 @@ export function craft(db, actor, id, batches, intermediate, orderId=null) {
       db.prepare('UPDATE production_schedule SET batches=batches-? WHERE item_id=?').run(batches,id);
     }
     audit(db,actor,'production',result.steps);
-    return result;
+    return {...result,productionId};
   });
 }
 
