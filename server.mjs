@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { open, audit, move, transaction, plan, craft, estimate } from './db.mjs';
 
@@ -310,8 +310,11 @@ createServer(async (req,res)=>{
     }
     if (req.method==='GET' && files.has(url.pathname)) {
       const [file,type]=files.get(url.pathname);
+      const publicPath = new URL('public/'+file,import.meta.url);
+      const source = existsSync(publicPath) ? publicPath : new URL(file,import.meta.url);
+      const contents = readFileSync(source);
       res.writeHead(200,{'Content-Type':type.startsWith('text/')?type+'; charset=utf-8':type});
-      return res.end(readFileSync(new URL('public/'+file,import.meta.url)));
+      return res.end(contents);
     }
     return answer(res,404,{error:'Pagina non trovata'});
   } catch (error) {
